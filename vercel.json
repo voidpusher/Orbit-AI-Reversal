@@ -1,0 +1,26 @@
+{
+  "framework": "nextjs",
+  "regions": ["sin1"],
+  "buildCommand": "npm run build",
+  "functions": {
+    "api/index.py": {
+      "maxDuration": 180
+    },
+    "app/api/analysis-jobs/process/route.ts": {
+      "maxDuration": 180,
+      "experimentalTriggers": [
+        {
+          "type": "queue/v2beta",
+          "topic": "orbit-analysis",
+          "retryAfterSeconds": 30
+        }
+      ]
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/v1/(.*)",
+      "destination": "/api?__orbit_path=v1/$1"
+    }
+  ]
+}

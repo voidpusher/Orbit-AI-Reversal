@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend — lint, test, migrations
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -e ".[dev,observability]"
+
+      - name: Lint (ruff)
+        run: ruff check app tests migrations
+
+      - name: Tests (pytest)
+        run: pytest -q
+
+      - name: Migrations apply cleanly
+        env:
+          ORBIT_DATABASE_URL: sqlite+aiosqlite:///./ci.db
+        run: alembic upgrade head
+
+      - name: Models match migrations (no un-generated changes)
+        env:
+          ORBIT_DATABASE_URL: sqlite+aiosqlite:///./ci.db
+        run: alembic check
+
+  frontend:
+    name: Frontend — build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"

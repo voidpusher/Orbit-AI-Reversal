@@ -1,0 +1,9 @@
+backend/.artifacts/
+backend/.pytest_cache/
+backend/.ruff_cache/
+backend/.venv/
+backend/orbit_api.egg-info/
+backend/pytest-of-sanchit/
+.pytest-runtime-*/
+backend/tests/
+backend/.env

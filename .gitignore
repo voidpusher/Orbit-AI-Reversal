@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+backend/.venv/
+.venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.pytest-runtime-*/
+.ruff_cache/
+
+# Next.js / build output
+.next/
+out/
+build/
+*.tsbuildinfo
+
+# Databases & runtime artifacts
+*.db
+*.sqlite
+*.sqlite3
+backend/.artifacts/
+backend/pytest-of-sanchit/
+
+# Environment (commit the *.example files, never the real ones)
+.env
+.env.local
+.env*.local
+backend/.env
+
+# Logs & OS
+*.log
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+.vercel
+
+# Local agent skills installed by provider CLIs
+.agents/
+skills-lock.json
