@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
+import { OpticalGlassRuntime } from "@/components/OpticalGlassRuntime";
 
 export const metadata: Metadata = {
   title: "Orbit — Understand Any Software",
@@ -11,6 +12,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en">
       <body>
+        <OpticalGlassRuntime />
         <Providers>{children}</Providers>
       </body>
     </html>

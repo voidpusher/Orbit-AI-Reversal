@@ -1,9 +1,9 @@
 "use client";
 
 import { ArrowRight, Bot, Boxes, Braces, Check, ChevronRight, CirclePlay, Code2, Database, Eye, Github, Globe2, Layers3, Network, Search, ShieldCheck, Sparkles, Waypoints } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const features = [
   [Eye, "Feature detection", "Map product capabilities from observable behavior."],
@@ -14,6 +14,56 @@ const features = [
   [Code2, "Engineering insights", "Understand the choices behind a product’s experience."],
 ];
 
+const DEMO_URL = "https://linear.app";
+const DEMO_LOGS: [string, string][] = [
+  ["00:01", "GET / 200 · document parsed"],
+  ["00:03", "graphql · IssueBoard query observed"],
+  ["00:05", "ws wss://sync.linear.app · realtime open"],
+  ["00:08", "42 modules mapped · React fingerprint"],
+];
+
+function HeroDemo() {
+  const reduced = useReducedMotion();
+  const [now, setNow] = useState(0);
+  useEffect(() => {
+    if (reduced) return;
+    const started = Date.now();
+    const id = setInterval(() => setNow(((Date.now() - started) % 13000) / 13000), 90);
+    return () => clearInterval(id);
+  }, [reduced]);
+
+  const t = reduced ? 1 : now;
+  const typed = DEMO_URL.slice(0, Math.ceil(Math.min(t / 0.13, 1) * DEMO_URL.length));
+  const scan = Math.max(0, Math.min((t - 0.14) / 0.42, 1));
+  const scanning = t >= 0.14 && t < 0.84;
+  const done = t >= 0.84;
+  const conf = Math.round(Math.max(0, Math.min((t - 0.6) / 0.24, 1)) * 94);
+  const nodeOn = (index: number) => t > 0.48 + index * 0.07;
+  const sigOn = (index: number) => t > 0.74 + index * 0.03;
+  const logOn = (index: number) => t > 0.17 + index * 0.09;
+
+  return (
+    <div className="window-body">
+      <aside className="mini-sidebar"><span className="mini-logo">o</span><span className="mini-active"><Layers3 size={16} /></span><span><Network size={16} /></span><span><Database size={16} /></span><span><Boxes size={16} /></span></aside>
+      <div className="report-preview">
+        <div className="demo-url"><Search size={13} /><b>{typed}</b>{t < 0.14 && <span className="demo-caret" />}<span className="demo-go">{done ? "DONE" : scanning ? "EXPLORING" : "ANALYZE"}</span></div>
+        <div className="preview-top"><div><span className="report-kicker">{done ? "REPORT OVERVIEW" : "LIVE EXPLORATION"}</span><h3 className={`demo-pop${t > 0.14 ? " on" : ""}`}>Linear</h3></div><span className={`confidence demo-pop${t > 0.62 ? " on" : ""}`}>{conf}% confidence</span></div>
+        <div className="preview-metrics">
+          <div><strong>{Math.round(scan * 24)}</strong><span>pages explored</span></div>
+          <div><strong>{Math.round(scan * 17)}</strong><span>features found</span></div>
+          <div><strong>{Math.round(scan * 126)}</strong><span>evidence points</span></div>
+        </div>
+        <div className="architecture-card"><div className="card-heading"><span>Observed architecture</span><ChevronRight size={15} /></div>
+          <div className="node-flow"><b className={`demo-dim${nodeOn(0) ? " on" : ""}`}><Globe2 size={15} /> Browser</b><i /><b className={`demo-dim${nodeOn(1) ? " on" : ""}`}><Code2 size={15} /> Frontend</b><i /><b className={`demo-dim${nodeOn(2) ? " on" : ""}`}><Network size={15} /> API</b></div>
+          <div className="node-flow lower"><b className={`demo-dim${nodeOn(3) ? " on" : ""}`}><Database size={15} /> Postgres</b><i /><b className={`demo-dim${nodeOn(4) ? " on" : ""}`}><Sparkles size={15} /> Realtime</b></div>
+        </div>
+        <div className="demo-log" aria-hidden>{DEMO_LOGS.map(([time, line], index) => <p className={`demo-pop${logOn(index) ? " on" : ""}`} key={time}><time>{time}</time>{line.split(" · ")[0]} <em>· {line.split(" · ")[1]}</em></p>)}</div>
+        <div className="signal-row"><span className="signal-title">Strong signals</span>{["React", "GraphQL", "WebSockets", "Stripe"].map((signal, index) => <span className={`demo-pop${sigOn(index) ? " on" : ""}`} key={signal}>{signal}</span>)}</div>
+      </div>
+    </div>
+  );
+}
+
 const reports = [
   ["Linear", "Product operations", "94%", "#5E6AD2"],
   ["Notion", "Collaborative workspace", "91%", "#E0E0E0"],
@@ -21,43 +71,46 @@ const reports = [
   ["Supabase", "Developer platform", "93%", "#3ECF8E"],
 ];
 
+const HERO_FALLBACK = "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&w=1920&q=70";
+
 export default function LandingPage() {
   const router = useRouter();
   const [url, setUrl] = useState("");
+  const [heroSrc, setHeroSrc] = useState(HERO_FALLBACK);
+  useEffect(() => {
+    const probe = new Image();
+    probe.onload = () => setHeroSrc("/hero.jpg");
+    probe.src = "/hero.jpg";
+  }, []);
   const start = () => router.push(`/analyze${url ? `?url=${encodeURIComponent(url)}` : ""}`);
 
   return (
-    <main>
+    <main className="landing">
       <nav className="site-nav">
         <a className="brand" href="#top" aria-label="Orbit home"><span className="brand-mark"><span /></span>orbit</a>
         <div className="nav-links"><a href="#product">Product</a><a href="#how-it-works">How it works</a><a href="#reports">Reports</a><a href="#pricing">Pricing</a></div>
         <div className="nav-actions"><button className="link-button" onClick={() => router.push("/login")}>Sign in</button><button className="button primary small" onClick={start}>Start analyzing <ArrowRight size={15} /></button></div>
       </nav>
 
-      <section id="top" className="hero shell-grid">
-        <div className="orb orb-one" /><div className="orb orb-two" />
-        <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .55 }} className="hero-copy">
-          <div className="eyebrow"><span className="status-dot" /> Software intelligence, made visible</div>
-          <h1>Understand any<br /><em>software.</em></h1>
-          <p>Orbit autonomously explores SaaS products and turns observable behavior into interactive engineering reports.</p>
-          <div className="hero-input">
-            <Globe2 size={18} /><input value={url} onChange={(event) => setUrl(event.target.value)} onKeyDown={(event) => event.key === "Enter" && start()} placeholder="https://linear.app" aria-label="Software URL" />
-            <button className="button primary" onClick={start}>Analyze <ArrowRight size={16} /></button>
-          </div>
-          <div className="trust-line"><ShieldCheck size={15} /> Public surfaces only. Evidence-backed by design.</div>
-        </motion.div>
-        <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .7, delay: .12 }} className="product-window">
-          <div className="window-bar"><div className="window-dots"><i /><i /><i /></div><span>orbit / report / linear</span><span className="window-live"><b /> Analysis complete</span></div>
-          <div className="window-body">
-            <aside className="mini-sidebar"><span className="mini-logo">o</span><span className="mini-active"><Layers3 size={16} /></span><span><Network size={16} /></span><span><Database size={16} /></span><span><Boxes size={16} /></span></aside>
-            <div className="report-preview">
-              <div className="preview-top"><div><span className="report-kicker">REPORT OVERVIEW</span><h3>Linear</h3></div><span className="confidence">94% confidence</span></div>
-              <div className="preview-metrics"><div><strong>24</strong><span>pages explored</span></div><div><strong>17</strong><span>features found</span></div><div><strong>126</strong><span>evidence points</span></div></div>
-              <div className="architecture-card"><div className="card-heading"><span>Observed architecture</span><ChevronRight size={15} /></div><div className="node-flow"><b><Globe2 size={15} /> Browser</b><i /><b><Code2 size={15} /> Frontend</b><i /><b><Network size={15} /> API</b></div><div className="node-flow lower"><b><Database size={15} /> Postgres</b><i /><b><Sparkles size={15} /> Realtime</b></div></div>
-              <div className="signal-row"><span className="signal-title">Strong signals</span><span>React</span><span>GraphQL</span><span>WebSockets</span><span>Stripe</span></div>
+      <section id="top" className="hero-cinema">
+        <img className="hero-video" src={heroSrc} alt="" aria-hidden />
+        <div className="hero-veil" />
+        <div className="hero shell-grid">
+          <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .55 }} className="hero-copy hero-glass">
+            <div className="eyebrow"><span className="status-dot" /> Software intelligence, made visible</div>
+            <h1>Understand any<br /><em>software.</em></h1>
+            <p>Orbit autonomously explores SaaS products and turns observable behavior into interactive engineering reports.</p>
+            <div className="hero-input">
+              <Globe2 size={18} /><input value={url} onChange={(event) => setUrl(event.target.value)} onKeyDown={(event) => event.key === "Enter" && start()} placeholder="https://linear.app" aria-label="Software URL" />
+              <button className="button primary" onClick={start}>Analyze <ArrowRight size={16} /></button>
             </div>
-          </div>
-        </motion.div>
+            <div className="trust-line"><ShieldCheck size={15} /> Public surfaces only. Evidence-backed by design.</div>
+          </motion.div>
+          <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .7, delay: .12 }} className="product-window">
+            <div className="window-bar"><div className="window-dots"><i /><i /><i /></div><span>orbit / report / linear</span><span className="window-live"><b /> Live analysis</span></div>
+            <HeroDemo />
+          </motion.div>
+        </div>
       </section>
 
       <section id="product" className="section container">
