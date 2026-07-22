@@ -10,6 +10,7 @@ import { ChangeEvent, DragEvent, Suspense, useRef, useState } from "react";
 import { api, ApiError } from "@/lib/api";
 import { ParsedHar, parseAndSanitizeHar } from "@/lib/har";
 import { RequireAuth } from "@/components/RequireAuth";
+import { OrbitLogo } from "@/components/OrbitLogo";
 
 type AnalysisMode = "live" | "har";
 
@@ -74,7 +75,7 @@ function AnalyzeInner() {
     <main className="app-shell">
       <header className="app-header">
         <button className="brand button-reset" onClick={() => router.push("/")}>
-          <span className="brand-mark"><span /></span>orbit
+          <OrbitLogo />orbit
         </button>
         <div className="header-context">
           <span>New analysis</span>

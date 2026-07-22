@@ -4,6 +4,7 @@ import { ChevronRight, FileText, GitCompareArrows, LayoutDashboard, Plus, Settin
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { OrbitLogo } from "@/components/OrbitLogo";
 
 const links: [React.ComponentType<{ size?: number }>, string, string][] = [
   [LayoutDashboard, "Dashboard", "/dashboard"],
@@ -26,9 +27,7 @@ export function AppSidebar({ active }: { active: string }) {
   return (
     <aside className="app-sidebar">
       <button className="brand button-reset" onClick={() => router.push("/")}>
-        <span className="brand-mark">
-          <span />
-        </span>
+        <OrbitLogo />
         orbit
       </button>
       <nav>

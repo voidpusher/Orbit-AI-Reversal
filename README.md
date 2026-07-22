@@ -82,9 +82,9 @@ pytest
 
 ## Notes
 
-Authentication is disabled by default so the product can be explored directly.
-To enable it for deployment, set `ORBIT_AUTH_DISABLED=false` and
-`NEXT_PUBLIC_AUTH_DISABLED=false`.
+Authentication is disabled by default for local development. Production and
+staging builds are protected by default; set `ORBIT_AUTH_DISABLED=true` and
+`NEXT_PUBLIC_AUTH_DISABLED=true` only when intentionally publishing a shared demo.
 
 ## License
 

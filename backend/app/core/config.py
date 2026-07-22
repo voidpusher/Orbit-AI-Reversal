@@ -63,6 +63,12 @@ def _default_browser_exploration() -> bool:
     return not os.getenv("VERCEL")
 
 
+def _default_auth_disabled() -> bool:
+    """Keep local setup simple while protecting production by default."""
+    environment = os.getenv("ORBIT_ENVIRONMENT", "development").strip().lower()
+    return not os.getenv("VERCEL") and environment not in {"production", "staging"}
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_prefix="ORBIT_", extra="ignore")
 
@@ -81,10 +87,9 @@ class Settings(BaseSettings):
     queue_driver: str = "in_process"
     # Internal Next.js producer used by the Python API when Vercel Queues is enabled.
     queue_enqueue_url: str | None = None
-    # Auth is disabled by default: all endpoints run as a single shared workspace
-    # with no token required. Re-enable the full auth/OAuth/RBAC system (kept intact
-    # in the codebase) by setting ORBIT_AUTH_DISABLED=false.
-    auth_disabled: bool = True
+    # Local development uses a shared workspace. Production and staging require
+    # authentication unless public demo mode is explicitly enabled.
+    auth_disabled: bool = Field(default_factory=_default_auth_disabled)
     # When true, the app runs `alembic upgrade head` on startup (the production
     # path). When false it falls back to create_all for fast local dev and tests.
     run_migrations_on_startup: bool = False

@@ -145,7 +145,7 @@ async def compare_reports(
     ctx: AuthContext = Depends(get_auth_context),
 ) -> ComparisonResponse:
     if a == b:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Choose two different reports to compare")
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Choose two different reports to compare")
     async with factory() as session:
         report_a = await _load(session, a, ctx.organization.id)
         report_b = await _load(session, b, ctx.organization.id)
@@ -212,7 +212,7 @@ async def export_report(
     ctx: AuthContext = Depends(get_auth_context),
 ) -> ExportResponse:
     if payload.format not in {"json", "markdown"}:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Unsupported export format")
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Unsupported export format")
     async with factory() as session:
         report = await _load(session, report_id, ctx.organization.id)
         slug = (report.product_name or "report").lower().replace(" ", "-")

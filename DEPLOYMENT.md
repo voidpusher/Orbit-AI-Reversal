@@ -2,14 +2,23 @@
 
 Orbit ships as one Vercel project. Next.js serves the UI and the protected queue/browser routes; FastAPI is exposed through `api/index.py` and the `/api/v1/*` rewrite.
 
-## Standard deployment
+## Production deployment
 
 1. Link the repository with `vercel link`.
-2. Set `ORBIT_CAPTURE_SECRET` to a long random value.
-3. Set `ORBIT_BROWSER_CAPTURE_URL=https://<your-domain>/api/browser-capture`.
-4. Deploy with `vercel --prod` or push `main` when Git deployment is enabled.
+2. Attach managed Postgres and confirm `DATABASE_URL` is present.
+3. Set `ORBIT_CAPTURE_SECRET` to a long random value.
+4. Set `ORBIT_BROWSER_CAPTURE_URL=https://<your-domain>/api/browser-capture`.
+5. Set `NEXT_PUBLIC_SITE_URL=https://<your-domain>` for canonical metadata.
+6. Keep authentication enabled with `ORBIT_AUTH_DISABLED=false` and
+   `NEXT_PUBLIC_AUTH_DISABLED=false`. Production defaults to protected mode when
+   these variables are omitted; set both to `true` only for an intentional demo.
+7. Set `ORBIT_RUN_MIGRATIONS_ON_STARTUP=true` for the first schema deployment,
+   then manage later migrations as an explicit release step.
+8. Deploy with `vercel --prod` or push `main` when Git deployment is enabled.
 
-Without managed storage, Orbit uses `/tmp/orbit.db` and completes analyses inline. That mode is suitable only for demos: data and reports are not durable across function instances.
+The application exposes `/api/v1/healthz` through the Vercel API rewrite for
+deployment monitoring. Without managed storage, Orbit uses `/tmp/orbit.db`; that
+mode is suitable only for demos because accounts, jobs, and reports are not durable.
 
 ## Durable analysis jobs
 

@@ -77,3 +77,9 @@ app.include_router(reports_router, prefix=API_PREFIX)
 @app.get("/healthz", tags=["operations"])
 async def health_check() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get(f"{API_PREFIX}/healthz", tags=["operations"], include_in_schema=False)
+async def api_health_check() -> dict[str, str]:
+    """Health endpoint exposed through the Vercel /api/v1 rewrite."""
+    return {"status": "ok"}

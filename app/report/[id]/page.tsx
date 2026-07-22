@@ -13,6 +13,7 @@ import { ArchitectureDiagram, ERDiagram, FlowDiagram } from "@/components/report
 import { ClassTag, ConfidenceChip, EvidenceList, ReasoningNote, SectionHead, UnableToDetermine } from "@/components/report/primitives";
 import { FindingsList, GradeBadge, MetricsStrip } from "@/components/report/findings";
 import { RequireAuth } from "@/components/RequireAuth";
+import { OrbitLogo } from "@/components/OrbitLogo";
 
 const NAV: [React.ComponentType<{ size?: number }>, string][] = [
   [Layers3, "Overview"], [Network, "Architecture"], [Waypoints, "User flows"], [Sparkles, "Features"],
@@ -75,7 +76,7 @@ function ReportViewerInner({ params }: { params: Promise<{ id: string }> }) {
     <main className="report-app">
       <aside className="report-sidebar">
         <button className="brand button-reset" onClick={() => router.push("/")}>
-          <span className="brand-mark"><span /></span>orbit
+          <OrbitLogo />orbit
         </button>
         <button className="crumb" onClick={() => router.push("/reports")}>
           <ArrowLeft size={15} /> Reports

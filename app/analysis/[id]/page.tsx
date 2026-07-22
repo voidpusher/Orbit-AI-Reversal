@@ -10,6 +10,7 @@ import { api } from "@/lib/api";
 import { useAnalysisStream } from "@/lib/useAnalysisStream";
 import type { AnalysisEvent } from "@/lib/types";
 import { RequireAuth } from "@/components/RequireAuth";
+import { OrbitLogo } from "@/components/OrbitLogo";
 
 const PIPELINE: { icon: React.ComponentType<{ size?: number }>; title: string; detail: string; at: number }[] = [
   { icon: Globe2, title: "Opening browser", detail: "Establishing an isolated exploration session", at: 4 },
@@ -57,7 +58,7 @@ function AnalysisProgressInner({ params }: { params: Promise<{ id: string }> }) 
     <main className="app-shell">
       <header className="app-header">
         <button className="brand button-reset" onClick={() => router.push("/")}>
-          <span className="brand-mark"><span /></span>orbit
+          <OrbitLogo />orbit
         </button>
         <div className="header-context">
           <span>{statusLabel(status)}</span>

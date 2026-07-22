@@ -284,30 +284,6 @@ main{position:relative}
 }
 
 :is(
-  .hero-glass,.product-window,.feature-card,.plan-card,.reports-grid,
-  .setup-card,.options-card,.har-instructions,.progress-card,.log-card,
-  .stat-card,.quick-analyze,.report-table,.auth-card,.settings-card,
-  .section-panel,.content-card,.insight-section,.metric,.report-card-lg,
-  .pricing-plan,.compare-side,.diff-block,.compare-arch,.compare-insights,
-  .crash-card,.report-hero-card,.architecture-block,.er-card,.rf-card,
-  .role-card,.flow-card,.empty-state,.table-loading,.unable-note,
-  .compare-banner,.metric-tile,.api-spec,.architecture-card
-):hover{
-  background-color:rgba(12,20,30,.035);
-  border-color:rgba(220,247,250,.16);
-  box-shadow:
-    inset 0 1px 0 rgba(225,248,251,.24),
-    inset 1px 0 0 rgba(112,231,255,.07),
-    inset -1px 0 0 rgba(159,227,239,.04),
-    inset 0 -1px 0 rgba(225,248,251,.05),
-    inset 0 -12px 30px rgba(166,215,255,.025),
-    0 32px 82px rgba(0,8,24,.25),
-    0 9px 26px rgba(0,8,24,.13);
-  -webkit-backdrop-filter:url("#orbit-glass-refraction-deep") blur(2px) saturate(1.42) contrast(1.055);
-  backdrop-filter:url("#orbit-glass-refraction-deep") blur(2px) saturate(1.42) contrast(1.055);
-}
-
-:is(
   .hero-glass,.product-window,.auth-card,.report-hero-card,.quick-analyze,
   .setup-card,.options-card,.section-panel,.compare-banner,.crash-card
 ){
@@ -445,7 +421,7 @@ main{position:relative}
 
 .table-head{background:linear-gradient(180deg,rgba(255,255,255,.065),rgba(255,255,255,.018))}
 .table-row,.example-report{background:transparent}
-.table-row:hover,.example-report:hover{background:radial-gradient(90% 150% at var(--glass-light-x) -50%,rgba(255,255,255,.09),rgba(255,255,255,.022) 52%,transparent)}
+.table-row:hover,.example-report:hover{background:rgba(255,255,255,.035)}
 .app-sidebar nav button.active,.report-sidebar nav .active{background:linear-gradient(145deg,rgba(255,255,255,.105),rgba(255,255,255,.025));border:1px solid rgba(255,255,255,.115);box-shadow:inset 0 1px 0 rgba(255,255,255,.18)}
 
 @supports not ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))){
@@ -465,3 +441,112 @@ main{position:relative}
   :is(.feature-card,.report-card-lg):hover,
   :is(.button,.icon-button,.provider-button,.filter-chip,.demo-go,.local-processing):hover{transform:none}
 }
+
+/* Interactive cards keep their resting glass treatment under the pointer. */
+:is(.feature-card,.report-card-lg):hover{
+  background-color:rgba(8,14,22,.025);
+  border-color:var(--glass-edge);
+  box-shadow:
+    inset 0 1px 0 rgba(225,248,251,.18),
+    inset 1px 0 0 rgba(112,231,255,.05),
+    inset -1px 0 0 rgba(159,227,239,.03),
+    inset 0 -1px 0 rgba(225,248,251,.035),
+    inset 0 -12px 28px rgba(166,215,255,.018),
+    0 28px 72px rgba(0,8,24,.22),
+    0 8px 24px rgba(0,8,24,.12);
+  -webkit-backdrop-filter:url("#orbit-glass-refraction") blur(2.5px) saturate(1.34) contrast(1.04);
+  backdrop-filter:url("#orbit-glass-refraction") blur(2.5px) saturate(1.34) contrast(1.04);
+  transform:none;
+}
+
+/* Landing navigation: a stable glass shell, independent of panel refraction. */
+.landing .site-nav{
+  top:16px;
+  left:24px;
+  right:24px;
+  width:calc(100% - 48px);
+  max-width:1180px;
+  height:60px;
+  padding:0 18px 0 16px;
+  border:1px solid rgba(226,247,250,.11);
+  border-radius:18px;
+  background:rgba(6,11,18,.68);
+  background-image:none;
+  box-shadow:inset 0 1px 0 rgba(236,252,255,.08),0 14px 38px rgba(0,8,24,.18);
+  -webkit-backdrop-filter:blur(18px) saturate(1.12);
+  backdrop-filter:blur(18px) saturate(1.12);
+}
+
+.landing .site-nav .nav-links{
+  align-items:center;
+  color:rgba(224,233,239,.68);
+}
+
+.landing .site-nav .nav-links a{
+  padding:8px 0;
+  transition:color 220ms var(--glass-ease);
+}
+
+.landing .site-nav .nav-links a:hover{color:#f4f8fa}
+.landing .site-nav .nav-actions{gap:14px}
+.landing .site-nav .link-button{color:rgba(224,233,239,.72)}
+.landing .site-nav .link-button:hover{color:#f4f8fa}
+
+@media(max-width:850px){
+  .landing .site-nav{
+    left:16px;
+    right:16px;
+    width:calc(100% - 32px);
+    height:58px;
+    padding:0 14px;
+  }
+}
+
+@media(max-width:560px){
+  .landing .site-nav{
+    top:10px;
+    left:10px;
+    right:10px;
+    width:calc(100% - 20px);
+    padding:0 12px;
+    border-radius:15px;
+  }
+  .landing .site-nav .brand{font-size:18px}
+  .landing .site-nav .nav-actions{gap:8px}
+  .landing .site-nav .button.small{padding:9px 11px}
+}
+
+/* Orbit identity: a restrained O with a single orbit point. */
+.brand-mark{
+  width:25px;
+  height:25px;
+  flex:none;
+  display:grid;
+  place-items:center;
+  overflow:visible;
+  color:#eef2f5;
+  background:transparent;
+  border:0;
+  border-radius:0;
+  box-shadow:none;
+}
+
+.brand-mark svg{width:25px;height:25px;display:block}
+.orbit-logo-ring{fill:none;stroke:currentColor;stroke-width:2.15}
+.orbit-logo-dot{fill:var(--accent);stroke:var(--bg);stroke-width:1.35}
+.footer .brand-mark{width:23px;height:23px}
+
+.route-loading{
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:14px;
+  color:var(--muted);
+  background:var(--bg);
+  font-size:12px;
+}
+.route-loading-mark{animation:orbit-loading 1.8s linear infinite}
+@keyframes orbit-loading{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.route-loading-mark{animation:none}}

@@ -65,7 +65,7 @@ class AuthService:
             try:
                 password_hash = hash_password(password)
             except ValueError as error:
-                raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(error)) from error
+                raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)) from error
 
             user = User(email=email, name=name.strip(), password_hash=password_hash)
             session.add(user)

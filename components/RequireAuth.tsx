@@ -12,8 +12,11 @@ import { getToken } from "@/lib/auth";
  * session is rejected. Renders a lightweight loader until identity is confirmed
  * so protected content never flashes for signed-out visitors.
  */
-// Auth is disabled by default; set NEXT_PUBLIC_AUTH_DISABLED=false to enforce it.
-const AUTH_DISABLED = process.env.NEXT_PUBLIC_AUTH_DISABLED !== "false";
+// Local development remains frictionless; production is protected unless the
+// deployment explicitly opts into public demo mode.
+const AUTH_DISABLED =
+  process.env.NEXT_PUBLIC_AUTH_DISABLED === "true" ||
+  (process.env.NEXT_PUBLIC_AUTH_DISABLED === undefined && process.env.NODE_ENV !== "production");
 
 export function RequireAuth({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -34,12 +37,12 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
     staleTime: 60_000,
   });
 
-  // Dev mode: auth is disabled server-side, render straight through.
-  if (AUTH_DISABLED) return <>{children}</>;
-
   useEffect(() => {
     if (error instanceof ApiError && error.status === 401) router.replace("/login");
   }, [error, router]);
+
+  // Dev mode: auth is disabled server-side, render straight through.
+  if (AUTH_DISABLED) return <>{children}</>;
 
   if (hasToken === null || (hasToken && isLoading)) {
     return (

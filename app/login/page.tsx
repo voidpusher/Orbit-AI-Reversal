@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { api, API_BASE, ApiError } from "@/lib/api";
 import { getToken, setToken } from "@/lib/auth";
 import type { AuthResult } from "@/lib/types";
+import { OrbitLogo } from "@/components/OrbitLogo";
 
 type Mode = "login" | "signup";
 
@@ -79,7 +80,7 @@ export default function LoginPage() {
       <div className="auth-orb" />
       <div className="auth-card">
         <button className="brand button-reset" onClick={() => router.push("/")}>
-          <span className="brand-mark"><span /></span>orbit
+          <OrbitLogo />orbit
         </button>
         <div className="auth-copy">
           <h1>{mode === "signup" ? "Create your account" : "Welcome back"}</h1>

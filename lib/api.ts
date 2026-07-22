@@ -34,9 +34,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
   let response: Response;
   try {
-    response = await fetch(`${API_BASE}${path}`, { ...init, headers });
-  } catch {
-    throw new ApiError(0, "Cannot reach the Orbit API. Is the backend running?");
+    response = await fetch(`${API_BASE}${path}`, {
+      ...init,
+      headers,
+      signal: init?.signal ?? AbortSignal.timeout(30_000),
+    });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "TimeoutError") {
+      throw new ApiError(0, "The Orbit API took too long to respond. Please try again.");
+    }
+    throw new ApiError(0, "Cannot reach the Orbit API. Please try again shortly.");
   }
   if (response.status === 401 && !path.startsWith("/api/v1/auth/")) {
     clearToken();

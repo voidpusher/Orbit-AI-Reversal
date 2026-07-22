@@ -4,6 +4,7 @@ import { ArrowRight, Bot, Boxes, Braces, Check, ChevronRight, CirclePlay, Code2,
 import { motion, useReducedMotion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { OrbitLogo } from "@/components/OrbitLogo";
 
 const features = [
   [Eye, "Feature detection", "Map product capabilities from observable behavior."],
@@ -87,7 +88,7 @@ export default function LandingPage() {
   return (
     <main className="landing">
       <nav className="site-nav">
-        <a className="brand" href="#top" aria-label="Orbit home"><span className="brand-mark"><span /></span>orbit</a>
+        <a className="brand" href="#top" aria-label="Orbit home"><OrbitLogo />orbit</a>
         <div className="nav-links"><a href="#product">Product</a><a href="#how-it-works">How it works</a><a href="#reports">Reports</a><a href="#pricing">Pricing</a></div>
         <div className="nav-actions"><button className="link-button" onClick={() => router.push("/login")}>Sign in</button><button className="button primary small" onClick={start}>Start analyzing <ArrowRight size={15} /></button></div>
       </nav>
@@ -128,7 +129,7 @@ export default function LandingPage() {
 
       <section id="pricing" className="section container pricing"><div className="pricing-copy"><span className="eyebrow">Simple pricing</span><h2>Start with a question.</h2><p>Explore with a free report. Upgrade when software intelligence becomes part of your team's operating system.</p></div><div className="plan-card"><div><span className="plan-label">FOR INDIVIDUALS</span><h3>Free</h3><p>Understand your next product.</p></div><div className="price"><strong>$0</strong><span> / month</span></div><ul><li><Check size={15} /> 3 reports per month</li><li><Check size={15} /> Interactive report viewer</li><li><Check size={15} /> Public URL exploration</li></ul><button className="button primary" onClick={start}>Get started <ArrowRight size={16} /></button></div></section>
 
-      <footer className="footer container"><a className="brand" href="#top"><span className="brand-mark"><span /></span>orbit</a><span>© 2026 Orbit Intelligence, Inc.</span><div><a href="#">Documentation</a><a href="#">Privacy</a><a href="#"><Github size={16} /></a></div></footer>
+      <footer className="footer container"><a className="brand" href="#top"><OrbitLogo />orbit</a><span>© 2026 Orbit Intelligence, Inc.</span><div><a href="#">Documentation</a><a href="#">Privacy</a><a href="#"><Github size={16} /></a></div></footer>
     </main>
   );
 }
