@@ -43,4 +43,5 @@ Thumbs.db
 
 # Local agent skills installed by provider CLIs
 .agents/
+.claude/
 skills-lock.json
