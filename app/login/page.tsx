@@ -62,16 +62,25 @@ export default function LoginPage() {
     },
   });
 
+  const guestMutation = useMutation({
+    mutationFn: api.guest,
+    onSuccess: (result) => {
+      setToken(result.token);
+      router.replace("/dashboard");
+    },
+  });
+
   const submit = () => {
     if (mutation.isPending) return;
     if (!email.trim() || !password || (mode === "signup" && !name.trim())) return;
     mutation.mutate();
   };
 
+  const activeError = guestMutation.error ?? mutation.error;
   const error =
-    mutation.error instanceof ApiError
-      ? mutation.error.message
-      : mutation.error
+    activeError instanceof ApiError
+      ? activeError.message
+      : activeError
         ? "Something went wrong. Please try again."
         : null;
 
@@ -93,6 +102,17 @@ export default function LoginPage() {
           </button>
           <button className="provider-button" onClick={() => startOAuth("github")}>
             <Github size={18} /> Continue with GitHub
+          </button>
+          <button
+            className="provider-button auth-skip"
+            onClick={() => guestMutation.mutate()}
+            disabled={guestMutation.isPending}
+          >
+            {guestMutation.isPending ? (
+              <><Loader2 size={16} className="spin" /> Starting guest session&hellip;</>
+            ) : (
+              <>Skip sign in <ArrowRight size={16} /></>
+            )}
           </button>
         </div>
         {oauthError && <div className="form-error"><TriangleAlert size={15} /> {oauthError}</div>}

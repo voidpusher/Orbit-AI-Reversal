@@ -31,6 +31,12 @@ async def login(payload: LoginRequest, auth: AuthService = Depends(get_auth_serv
     return _auth_response(token, record, user, org, role)
 
 
+@router.post("/auth/guest", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
+async def guest(auth: AuthService = Depends(get_auth_service)) -> AuthResponse:
+    token, record, user, org, role = await auth.guest()
+    return _auth_response(token, record, user, org, role)
+
+
 @router.post("/auth/logout", status_code=status.HTTP_204_NO_CONTENT)
 async def logout(
     authorization: str | None = Header(default=None),

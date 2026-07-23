@@ -80,6 +80,8 @@ export const api = {
       body: JSON.stringify({ email, password }),
     }),
 
+  guest: () => request<AuthResult>("/api/v1/auth/guest", { method: "POST" }),
+
   logout: () => request<void>("/api/v1/auth/logout", { method: "POST" }),
 
   createAnalysis: (target_url: string, options: AnalysisOptions) =>

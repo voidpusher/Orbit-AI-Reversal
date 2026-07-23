@@ -63,6 +63,23 @@ async def test_signup_login_and_me(client: httpx.AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
+async def test_guest_session_is_authenticated_and_isolated(client: httpx.AsyncClient) -> None:
+    first = await client.post("/api/v1/auth/guest")
+    second = await client.post("/api/v1/auth/guest")
+
+    assert first.status_code == 201
+    assert second.status_code == 201
+    assert first.json()["user"]["name"] == "Guest"
+    assert first.json()["plan"] == "free"
+
+    first_me = await client.get("/api/v1/me", headers=_auth_header(first.json()["token"]))
+    second_me = await client.get("/api/v1/me", headers=_auth_header(second.json()["token"]))
+    assert first_me.status_code == 200
+    assert second_me.status_code == 200
+    assert first_me.json()["organization_id"] != second_me.json()["organization_id"]
+
+
+@pytest.mark.asyncio
 async def test_tenant_isolation(client: httpx.AsyncClient) -> None:
     a = (await client.post("/api/v1/auth/signup", json={"email": "a@x.com", "name": "Alice", "password": "password1"})).json()["token"]
     b = (await client.post("/api/v1/auth/signup", json={"email": "b@x.com", "name": "Bob", "password": "password1"})).json()["token"]

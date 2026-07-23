@@ -550,3 +550,8 @@ main{position:relative}
 .route-loading-mark{animation:orbit-loading 1.8s linear infinite}
 @keyframes orbit-loading{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){.route-loading-mark{animation:none}}
+
+/* Guest access stays secondary to account sign-in. */
+.auth-skip{color:var(--muted);background:transparent;border-color:rgba(255,255,255,.09);box-shadow:none}
+.auth-skip:hover{color:var(--text);background:rgba(255,255,255,.035);border-color:rgba(255,255,255,.16)}
+.auth-skip:disabled{cursor:wait;opacity:.62}

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from uuid import uuid4
 
 from fastapi import HTTPException, status
 from sqlalchemy import func, select
@@ -104,6 +105,39 @@ class AuthService:
             await session.refresh(user)
             await session.refresh(org)
             return token, record, user, org, membership.role
+
+    async def guest(self) -> tuple[str, Session, User, Organization, str]:
+        """Provision an isolated free workspace for a user skipping sign-in."""
+        suffix = uuid4().hex[:12]
+        async with self._sessions() as session:
+            user = User(
+                email=f"guest-{suffix}@orbit.local",
+                name="Guest",
+                password_hash=None,
+                status="guest",
+            )
+            session.add(user)
+            await session.flush()
+
+            org = Organization(name="Guest workspace", slug=f"guest-{suffix}", plan=Plan.FREE)
+            session.add(org)
+            await session.flush()
+            session.add(OrganizationMember(organization_id=org.id, user_id=user.id, role=Role.OWNER))
+
+            token, record = self._new_session(user.id, org.id)
+            session.add(record)
+            session.add(AuditLog(
+                organization_id=org.id,
+                actor_id=user.id,
+                action="guest.session_started",
+                target_type="user",
+                target_id=user.id,
+            ))
+            await session.commit()
+            await session.refresh(record)
+            await session.refresh(user)
+            await session.refresh(org)
+            return token, record, user, org, Role.OWNER
 
     async def oauth_upsert(
         self, provider: str, subject: str, email: str, name: str, avatar_url: str | None
