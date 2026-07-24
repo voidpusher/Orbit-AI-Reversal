@@ -195,10 +195,8 @@ main{position:relative}
   --glass-ease:cubic-bezier(.22,1,.36,1);
 }
 
-.optical-glass-defs{position:fixed;width:0;height:0;overflow:hidden;pointer-events:none;visibility:hidden}
-
 /* Thick crystal panels. The middle stays clear while the perimeter carries
-   denser material, chromatic fringing, and internal reflection. */
+   denser material and internal reflection. */
 :is(
   .hero-glass,.product-window,.feature-card,.plan-card,.reports-grid,
   .setup-card,.options-card,.har-instructions,.progress-card,.log-card,
@@ -226,8 +224,6 @@ main{position:relative}
     0 8px 24px rgba(0,8,24,.12);
   -webkit-backdrop-filter:blur(3px) saturate(1.32) contrast(1.035);
   backdrop-filter:blur(3px) saturate(1.32) contrast(1.035);
-  -webkit-backdrop-filter:url("#orbit-glass-refraction") blur(2.5px) saturate(1.34) contrast(1.04);
-  backdrop-filter:url("#orbit-glass-refraction") blur(2.5px) saturate(1.34) contrast(1.04);
   transition:background-color 260ms var(--glass-ease),border-color 260ms var(--glass-ease),box-shadow 260ms var(--glass-ease),filter 260ms var(--glass-ease),transform 260ms var(--glass-ease);
 }
 
@@ -252,7 +248,6 @@ main{position:relative}
   pointer-events:none;
   opacity:.48;
   background:radial-gradient(46% 12% at var(--glass-light-x) 0%,rgba(215,249,255,.14),rgba(151,229,241,.035) 48%,transparent 78%);
-  mix-blend-mode:screen;
   transition:opacity 240ms var(--glass-ease),background-position 260ms var(--glass-ease);
 }
 
@@ -289,8 +284,6 @@ main{position:relative}
 ){
   -webkit-backdrop-filter:blur(5px) saturate(1.38) contrast(1.04);
   backdrop-filter:blur(5px) saturate(1.38) contrast(1.04);
-  -webkit-backdrop-filter:url("#orbit-glass-refraction-deep") blur(3.5px) saturate(1.42) contrast(1.05);
-  backdrop-filter:url("#orbit-glass-refraction-deep") blur(3.5px) saturate(1.42) contrast(1.05);
 }
 
 /* Interactive cards keep their footprint and gain only a restrained lift. */
@@ -314,8 +307,6 @@ main{position:relative}
     0 12px 34px rgba(0,8,24,.16);
   -webkit-backdrop-filter:blur(2px) saturate(1.35);
   backdrop-filter:blur(2px) saturate(1.35);
-  -webkit-backdrop-filter:url("#orbit-glass-refraction") blur(1.5px) saturate(1.4);
-  backdrop-filter:url("#orbit-glass-refraction") blur(1.5px) saturate(1.4);
   transition:background-color 240ms var(--glass-ease),border-color 240ms var(--glass-ease),box-shadow 240ms var(--glass-ease),color 240ms var(--glass-ease),transform 240ms var(--glass-ease);
 }
 
@@ -348,8 +339,8 @@ main{position:relative}
     inset -1px 0 0 rgba(159,227,239,.07),
     0 15px 38px rgba(0,8,24,.18),
     0 0 24px rgba(109,225,255,.055);
-  -webkit-backdrop-filter:url("#orbit-glass-refraction-deep") blur(1px) saturate(1.46);
-  backdrop-filter:url("#orbit-glass-refraction-deep") blur(1px) saturate(1.46);
+  -webkit-backdrop-filter:blur(2px) saturate(1.4);
+  backdrop-filter:blur(2px) saturate(1.4);
 }
 
 .button.primary:hover{
@@ -385,8 +376,6 @@ main{position:relative}
     0 14px 36px rgba(0,8,24,.13);
   -webkit-backdrop-filter:blur(2px) saturate(1.3);
   backdrop-filter:blur(2px) saturate(1.3);
-  -webkit-backdrop-filter:url("#orbit-glass-refraction") blur(1.5px) saturate(1.35);
-  backdrop-filter:url("#orbit-glass-refraction") blur(1.5px) saturate(1.35);
   transition:border-color 240ms var(--glass-ease),box-shadow 240ms var(--glass-ease),background-color 240ms var(--glass-ease);
 }
 
@@ -411,8 +400,6 @@ main{position:relative}
   box-shadow:inset 0 1px 0 rgba(255,255,255,.15),0 22px 60px rgba(0,8,24,.12);
   -webkit-backdrop-filter:blur(9px) saturate(1.35);
   backdrop-filter:blur(9px) saturate(1.35);
-  -webkit-backdrop-filter:url("#orbit-glass-refraction-deep") blur(6px) saturate(1.38);
-  backdrop-filter:url("#orbit-glass-refraction-deep") blur(6px) saturate(1.38);
 }
 
 .site-nav{border-bottom:1px solid rgba(255,255,255,.09)}
@@ -454,8 +441,8 @@ main{position:relative}
     inset 0 -12px 28px rgba(166,215,255,.018),
     0 28px 72px rgba(0,8,24,.22),
     0 8px 24px rgba(0,8,24,.12);
-  -webkit-backdrop-filter:url("#orbit-glass-refraction") blur(2.5px) saturate(1.34) contrast(1.04);
-  backdrop-filter:url("#orbit-glass-refraction") blur(2.5px) saturate(1.34) contrast(1.04);
+  -webkit-backdrop-filter:blur(3px) saturate(1.32) contrast(1.035);
+  backdrop-filter:blur(3px) saturate(1.32) contrast(1.035);
   transform:none;
 }
 

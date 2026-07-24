@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
-import { OpticalGlassRuntime } from "@/components/OpticalGlassRuntime";
 
 const siteUrl =
   process.env.NEXT_PUBLIC_SITE_URL ??
@@ -46,7 +45,6 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en">
       <body>
-        <OpticalGlassRuntime />
         <Providers>{children}</Providers>
       </body>
     </html>
