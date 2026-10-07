@@ -10,7 +10,7 @@ import { use, useState } from "react";
 import { api } from "@/lib/api";
 import type { ReportDetail, ReportDocument } from "@/lib/types";
 import { ArchitectureDiagram, ERDiagram, FlowDiagram } from "@/components/report/diagrams";
-import { ClassTag, ConfidenceChip, EvidenceList, ReasoningNote, SectionHead, UnableToDetermine } from "@/components/report/primitives";
+import { ClassTag, ConfidenceChip, ConfidenceGauge, EvidenceList, ReasoningNote, SectionHead, UnableToDetermine } from "@/components/report/primitives";
 import { FindingsList, GradeBadge, MetricsStrip } from "@/components/report/findings";
 import { RequireAuth } from "@/components/RequireAuth";
 import { OrbitLogo } from "@/components/OrbitLogo";
@@ -150,10 +150,7 @@ function Overview({ report, setActive }: { report: ReportDetail; setActive: (s: 
             <span><Sparkles size={14} /> {doc.meta.access_limited ? "Features unavailable" : `${doc.meta.features_count} features observed`}</span>
           </div>
         </div>
-        <div className="overall-score">
-          <div><b>{doc.meta.overall_confidence}</b><small>overall confidence</small></div>
-          <span>{doc.meta.confidence_band}</span>
-        </div>
+        <ConfidenceGauge score={doc.meta.overall_confidence} band={doc.meta.confidence_band} />
       </section>
 
       {doc.meta.access_limited && (

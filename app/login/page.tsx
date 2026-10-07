@@ -2,10 +2,11 @@
 
 import { ArrowRight, Github, Loader2, Lock, Mail, TriangleAlert, User } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { api, API_BASE, ApiError } from "@/lib/api";
-import { getToken, setToken } from "@/lib/auth";
+import { AUTH_DISABLED } from "@/lib/auth-config";
+import { setToken } from "@/lib/auth";
 import type { AuthResult } from "@/lib/types";
 import { OrbitLogo } from "@/components/OrbitLogo";
 
@@ -21,6 +22,7 @@ const OAUTH_ERRORS: Record<string, string> = {
 
 export default function LoginPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [mode, setMode] = useState<Mode>("login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -29,25 +31,25 @@ export default function LoginPage() {
 
   // Handle the OAuth redirect back to /login#token=… or /login#error=…
   useEffect(() => {
-    if (process.env.NEXT_PUBLIC_AUTH_DISABLED !== "false") {
+    if (AUTH_DISABLED) {
       router.replace("/dashboard");
       return;
     }
     const hash = window.location.hash.replace(/^#/, "");
-    if (hash) {
-      const params = new URLSearchParams(hash);
-      const token = params.get("token");
-      const error = params.get("error");
-      history.replaceState(null, "", window.location.pathname);
-      if (token) {
-        setToken(token);
-        router.replace("/dashboard");
-        return;
-      }
-      if (error) setOauthError(OAUTH_ERRORS[error] ?? "Social sign-in failed. Please try again.");
+    if (!hash) return;
+
+    const params = new URLSearchParams(hash);
+    const token = params.get("token");
+    const error = params.get("error");
+    history.replaceState(null, "", window.location.pathname);
+    if (token) {
+      setToken(token);
+      queryClient.removeQueries({ queryKey: ["me"] });
+      router.replace("/dashboard");
+      return;
     }
-    if (getToken()) router.replace("/dashboard");
-  }, [router]);
+    if (error) setOauthError(OAUTH_ERRORS[error] ?? "Social sign-in failed. Please try again.");
+  }, [queryClient, router]);
 
   const startOAuth = (provider: "google" | "github") => {
     window.location.href = `${API_BASE}/api/v1/auth/oauth/${provider}/start`;
@@ -58,6 +60,7 @@ export default function LoginPage() {
       mode === "signup" ? api.signup(email, name, password) : api.login(email, password),
     onSuccess: (result) => {
       setToken(result.token);
+      queryClient.removeQueries({ queryKey: ["me"] });
       router.replace("/dashboard");
     },
   });
@@ -66,6 +69,7 @@ export default function LoginPage() {
     mutationFn: api.guest,
     onSuccess: (result) => {
       setToken(result.token);
+      queryClient.removeQueries({ queryKey: ["me"] });
       router.replace("/dashboard");
     },
   });

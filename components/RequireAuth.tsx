@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { api, ApiError } from "@/lib/api";
+import { AUTH_DISABLED } from "@/lib/auth-config";
 import { getToken } from "@/lib/auth";
 
 /**
@@ -12,12 +13,6 @@ import { getToken } from "@/lib/auth";
  * session is rejected. Renders a lightweight loader until identity is confirmed
  * so protected content never flashes for signed-out visitors.
  */
-// Local development remains frictionless; production is protected unless the
-// deployment explicitly opts into public demo mode.
-const AUTH_DISABLED =
-  process.env.NEXT_PUBLIC_AUTH_DISABLED === "true" ||
-  (process.env.NEXT_PUBLIC_AUTH_DISABLED === undefined && process.env.NODE_ENV !== "production");
-
 export function RequireAuth({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [hasToken, setHasToken] = useState<boolean | null>(null);
@@ -38,7 +33,10 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
   });
 
   useEffect(() => {
-    if (error instanceof ApiError && error.status === 401) router.replace("/login");
+    if (error instanceof ApiError && error.status === 401) {
+      setHasToken(false);
+      router.replace("/login");
+    }
   }, [error, router]);
 
   // Dev mode: auth is disabled server-side, render straight through.

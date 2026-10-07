@@ -19,6 +19,40 @@ export function ConfidenceChip({ score }: { score: number }) {
   );
 }
 
+export function ConfidenceGauge({ score, band }: { score: number; band?: string }) {
+  const normalizedScore = Math.max(0, Math.min(100, Math.round(score)));
+  const tone = normalizedScore >= 88 ? "strong" : normalizedScore >= 74 ? "good" : normalizedScore >= 60 ? "moderate" : "weak";
+  const evidenceBand = band ?? `${confidenceBand(normalizedScore)} evidence`;
+
+  return (
+    <div
+      className={`overall-score ${tone}`}
+      role="img"
+      aria-label={`${normalizedScore}% overall confidence, ${evidenceBand}`}
+    >
+      <div className="confidence-dial">
+        <svg viewBox="0 0 160 160" aria-hidden="true">
+          <circle className="confidence-track" cx="80" cy="80" r="68" pathLength="100" />
+          <circle
+            className="confidence-value"
+            cx="80"
+            cy="80"
+            r="68"
+            pathLength="100"
+            strokeDasharray="100"
+            strokeDashoffset={100 - normalizedScore}
+          />
+        </svg>
+        <div className="confidence-score">
+          <b>{normalizedScore}<sup>%</sup></b>
+          <small>Overall confidence</small>
+        </div>
+      </div>
+      <span className="confidence-band"><i />{evidenceBand}</span>
+    </div>
+  );
+}
+
 export function SectionHead({
   eyebrow,
   title,

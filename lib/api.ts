@@ -25,12 +25,12 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const token = getToken();
+  const requestToken = getToken();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(init?.headers as Record<string, string> | undefined),
   };
-  if (token) headers.Authorization = `Bearer ${token}`;
+  if (requestToken) headers.Authorization = `Bearer ${requestToken}`;
 
   let response: Response;
   try {
@@ -45,7 +45,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     }
     throw new ApiError(0, "Cannot reach the Orbit API. Please try again shortly.");
   }
-  if (response.status === 401 && !path.startsWith("/api/v1/auth/")) {
+  if (
+    response.status === 401 &&
+    !path.startsWith("/api/v1/auth/") &&
+    getToken() === requestToken
+  ) {
     clearToken();
   }
   if (response.status === 204) return undefined as T;
