@@ -59,6 +59,7 @@ def infer_architecture(inputs: Any, detections: list[Detection]) -> dict:
     accessible_pages = [page for page in inputs.pages if 200 <= page.status < 400]
     application_accessible = bool(accessible_pages)
     api_evidence = _api_evidence(inputs)
+    worker_evidence = _worker_evidence(inputs)
     nodes: list[dict] = []
     connections: list[dict] = []
 
@@ -134,6 +135,12 @@ def infer_architecture(inputs: Any, detections: list[Detection]) -> dict:
             "realtime", realtime.name, "realtime", realtime.confidence, "Realtime event channel",
             ["Pushes state changes", "Supports live product updates"], realtime.evidence,
         )
+    if worker_evidence:
+        add_node(
+            "worker", "Background worker", "worker", 66, "Asynchronous processing boundary",
+            ["Runs long-lived product jobs", "Processes imports, exports, or queued work"],
+            worker_evidence, "inferred",
+        )
     if data:
         add_node(
             "data", data.name, "data", data.confidence, "Persistence/data service",
@@ -180,6 +187,12 @@ def infer_architecture(inputs: Any, detections: list[Detection]) -> dict:
         connect(
             "frontend", "realtime", "Live state synchronization", "WebSocket/events",
             realtime.confidence, realtime.evidence,
+        )
+    if worker_evidence:
+        worker_source = "api" if any(node["id"] == "api" for node in nodes) else "frontend"
+        connect(
+            worker_source, "worker", "Asynchronous job handoff", "Job queue", 66,
+            worker_evidence, "inferred",
         )
     if data:
         direct_data = data.name in {"Supabase", "Firebase"}
@@ -269,6 +282,28 @@ def _api_evidence(inputs: Any) -> list[str]:
     return evidence[:6]
 
 
+def _worker_evidence(inputs: Any) -> list[str]:
+    """Return observable signals that justify an inferred asynchronous worker."""
+    path_markers = ("/jobs", "/job/", "/tasks", "/queue", "/exports", "/export/", "/imports", "/import/")
+    text_markers = (
+        "background job", "export is ready", "exporting", "import is processing",
+        "processing import", "job status", "queued for processing",
+    )
+    evidence: list[str] = []
+    for signal in inputs.network_signals:
+        path = str(signal.get("path", ""))
+        if any(marker in path.lower() for marker in path_markers):
+            host = str(signal.get("host", inputs.host))
+            method = str(signal.get("method", "GET"))
+            evidence.append(f"{method} https://{host}{path} exposes an asynchronous job lifecycle")
+    for page in inputs.pages:
+        page_text = f"{page.title} {page.text}".lower()
+        marker = next((item for item in text_markers if item in page_text), None)
+        if marker:
+            evidence.append(f'Product copy on {page.url} references "{marker}"')
+    return list(dict.fromkeys(evidence))[:4]
+
+
 def _api_style(inputs: Any, detection: Detection | None) -> str:
     if any("graphql" in path.lower() for path in inputs.api_paths):
         return "GraphQL"
@@ -308,6 +343,16 @@ def _request_flows(
             "confidence": 86 if inputs.api_paths else 72,
             "classification": "observed" if inputs.api_paths else "inferred",
             "evidence": (api_evidence or (api_detection.evidence if api_detection else []))[:3],
+        })
+    if "worker" in node_by_id:
+        flow_start = "api" if "api" in node_by_id else "frontend"
+        flows.append({
+            "name": "Background work",
+            "steps": ["browser", "frontend"] + (["api"] if flow_start == "api" else []) + ["worker"],
+            "transport": "HTTPS + job queue",
+            "confidence": node_by_id["worker"]["confidence"],
+            "classification": "inferred",
+            "evidence": node_by_id["worker"]["evidence"][:3],
         })
     for kind, name, transport in (
         ("auth", "Identity flow", "OAuth/OIDC/HTTPS"),
@@ -419,10 +464,10 @@ def _unknowns(node_ids: set[str], nodes: list[dict]) -> list[str]:
 
 
 def _layers(node_ids: set[str]) -> list[dict]:
-    core = {"browser", "edge", "frontend", "api", "realtime", "data"}
+    core = {"browser", "edge", "frontend", "api", "realtime", "worker", "data"}
     layers = [
         {"name": "Client & delivery", "node_ids": [item for item in ("browser", "edge") if item in node_ids]},
-        {"name": "Application", "node_ids": [item for item in ("frontend", "api", "realtime") if item in node_ids]},
+        {"name": "Application", "node_ids": [item for item in ("frontend", "api", "realtime", "worker") if item in node_ids]},
         {"name": "Data", "node_ids": ["data"] if "data" in node_ids else []},
         {"name": "Platform & integrations", "node_ids": sorted(node_ids - core)},
     ]

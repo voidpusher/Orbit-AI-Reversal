@@ -169,6 +169,28 @@ def test_architecture_keeps_unobservable_internal_tiers_unknown() -> None:
     assert any("persistence" in unknown.lower() for unknown in result["unknowns"])
 
 
+def test_architecture_infers_worker_only_from_async_job_evidence() -> None:
+    inputs = AnalysisInputs(
+        product_name="Acme",
+        host="acme.com",
+        url="https://acme.com",
+        pages=[PageInfo("https://acme.com/exports", "/exports", "Exports", 200, "Your export is ready")],
+        api_paths=["/api/exports/jobs/42"],
+        network_signals=[{
+            "host": "acme.com", "path": "/api/exports/jobs/42", "method": "GET",
+            "status": 200, "resource_type": "fetch", "content_type": "application/json",
+        }],
+    )
+
+    result = infer_architecture(inputs, [])
+    worker = next(node for node in result["nodes"] if node["kind"] == "worker")
+
+    assert worker["classification"] == "inferred"
+    assert worker["evidence"]
+    assert any(connection["to"] == worker["id"] for connection in result["connections"])
+    assert any(flow["name"] == "Background work" for flow in result["request_flows"])
+
+
 def test_blocked_target_caps_confidence_and_stops_at_delivery_edge() -> None:
     inputs = AnalysisInputs(
         product_name="Blocked",

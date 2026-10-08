@@ -553,6 +553,151 @@ main{position:relative}
 .auth-skip:hover{color:var(--text);background:rgba(255,255,255,.035);border-color:rgba(255,255,255,.16)}
 .auth-skip:disabled{cursor:wait;opacity:.62}
 
+/* Interactive architecture reconstruction workspace. */
+.architecture-workspace{
+  margin-top:18px;
+  overflow:hidden;
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:18px;
+  background:rgba(5,9,13,.58);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 24px 70px rgba(0,0,0,.3);
+}
+.architecture-workspace-head{
+  position:relative;
+  z-index:4;
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:24px;
+  padding:20px 20px 17px;
+  border-bottom:1px solid rgba(255,255,255,.09);
+  background:rgba(9,13,18,.82);
+}
+.architecture-workspace-head h3{font-family:"Space Grotesk";font-size:18px;letter-spacing:-.035em;margin:8px 0 5px}
+.architecture-workspace-head p{max-width:560px;margin:0;color:var(--muted);font-size:11px;line-height:1.55}
+.architecture-export-wrap{position:relative}
+.architecture-export-button{
+  height:36px;
+  display:flex;
+  align-items:center;
+  gap:7px;
+  padding:0 11px;
+  color:#dce2e8;
+  background:rgba(255,255,255,.045);
+  border:1px solid rgba(255,255,255,.13);
+  border-radius:9px;
+  font-size:11px;
+}
+.architecture-export-button:hover{background:rgba(255,255,255,.075);border-color:rgba(255,255,255,.22)}
+.architecture-export-menu{
+  position:absolute;
+  top:43px;
+  right:0;
+  z-index:20;
+  width:222px;
+  padding:6px;
+  border:1px solid rgba(255,255,255,.16);
+  border-radius:12px;
+  background:rgba(9,13,18,.97);
+  box-shadow:0 22px 50px rgba(0,0,0,.55);
+  backdrop-filter:blur(20px);
+}
+.architecture-export-menu button{width:100%;display:flex;align-items:center;gap:10px;padding:9px;color:#cbd3da;background:transparent;border:0;border-radius:7px;text-align:left}
+.architecture-export-menu button:hover{background:rgba(255,255,255,.065);color:#fff}
+.architecture-export-menu button>svg{color:var(--accent);flex:none}
+.architecture-export-menu button span{display:flex;flex-direction:column;gap:2px}
+.architecture-export-menu b{font-size:10px;font-weight:600}.architecture-export-menu small{font-size:8px;color:#737e89}
+.architecture-filters{
+  position:relative;
+  z-index:3;
+  display:flex;
+  align-items:flex-end;
+  gap:8px;
+  padding:11px 13px;
+  overflow-x:auto;
+  border-bottom:1px solid rgba(255,255,255,.08);
+  background:rgba(7,11,15,.78);
+}
+.architecture-filters label{display:flex;flex-direction:column;gap:5px;min-width:128px}
+.architecture-filters label>span{font-family:"DM Mono";font-size:7px;color:#68727c;text-transform:uppercase;letter-spacing:.08em}
+.architecture-filters select{
+  height:32px;
+  min-width:0;
+  padding:0 27px 0 9px;
+  color:#aeb8c1;
+  background:#0d1319;
+  border:1px solid rgba(255,255,255,.11);
+  border-radius:7px;
+  outline:0;
+  font-size:9px;
+}
+.architecture-filters select:focus{border-color:rgba(110,231,255,.48)}
+.architecture-reset{height:32px;display:flex;align-items:center;gap:6px;padding:0 9px;color:#7f8a94;background:transparent;border:1px solid transparent;border-radius:7px;font-size:9px;white-space:nowrap}
+.architecture-reset:hover{color:#d7dde2;background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.1)}
+.architecture-canvas-shell{display:grid;grid-template-columns:minmax(0,1fr);min-height:620px;transition:grid-template-columns .25s ease}
+.architecture-canvas-shell.has-inspector{grid-template-columns:minmax(0,1fr) 290px}
+.architecture-react-flow{min-width:0;min-height:620px;background:radial-gradient(circle at 50% 30%,rgba(32,64,84,.13),transparent 52%),#070b0f}
+.architecture-react-flow .react-flow{width:100%;height:620px}
+.architecture-react-flow .react-flow__node{border-radius:14px}
+.architecture-react-flow .react-flow__node:focus{outline:0}
+.architecture-flow-node{
+  width:100%;
+  height:100%;
+  padding:13px 14px;
+  color:#f1f4f6;
+  background:linear-gradient(150deg,rgba(20,29,38,.97),rgba(9,14,19,.98));
+  border:1px solid color-mix(in srgb,var(--node-accent) 54%,rgba(255,255,255,.08));
+  border-left:3px solid var(--node-accent);
+  border-radius:14px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.09),0 14px 35px rgba(0,0,0,.32);
+  transition:border-color .2s,box-shadow .2s,transform .2s;
+}
+.architecture-flow-node:hover,.architecture-flow-node.selected{border-color:color-mix(in srgb,var(--node-accent) 78%,white 6%);box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 18px 40px rgba(0,0,0,.42),0 0 0 2px color-mix(in srgb,var(--node-accent) 14%,transparent)}
+.architecture-flow-node-top{display:flex;align-items:center;gap:7px}
+.architecture-flow-node-icon{width:27px;height:27px;display:grid;place-items:center;color:var(--node-accent);background:color-mix(in srgb,var(--node-accent) 10%,transparent);border-radius:7px}
+.architecture-flow-node-top>b{margin-left:auto;color:#9ba8b3;font-family:"DM Mono";font-size:9px;font-weight:500}
+.architecture-flow-node>strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:11px;font-family:"Space Grotesk";font-size:13px;letter-spacing:-.02em}
+.architecture-flow-node>small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:5px;color:#78838d;font-size:9px}
+.architecture-flow-class{display:inline-flex;align-items:center;gap:4px;color:#9aa5af;font-family:"DM Mono";font-size:7px;text-transform:uppercase;letter-spacing:.05em}
+.architecture-flow-class i{width:5px;height:5px;border-radius:50%;background:currentColor}
+.architecture-flow-class.observed{color:#7fe3a6}.architecture-flow-class.inferred{color:#9ecdff}
+.architecture-flow-node .react-flow__handle{width:7px;height:7px;background:#18222c;border:1px solid var(--node-accent);opacity:.8}
+.architecture-react-flow .react-flow__edge-path{transition:stroke-width .2s,opacity .2s}
+.architecture-react-flow .react-flow__edge:hover .react-flow__edge-path{stroke-width:3!important}
+.architecture-react-flow .react-flow__edge.inferred .react-flow__edge-path{opacity:.72}
+.architecture-react-flow .react-flow__controls{overflow:hidden;border:1px solid rgba(255,255,255,.12);border-radius:9px;box-shadow:0 12px 30px rgba(0,0,0,.28)}
+.architecture-react-flow .react-flow__controls-button{width:28px;height:28px;color:#aab4bd;background:#0c1218;border-bottom-color:rgba(255,255,255,.09)}
+.architecture-react-flow .react-flow__controls-button:hover{background:#151d25}.architecture-react-flow .react-flow__controls-button svg{fill:currentColor}
+.architecture-react-flow .react-flow__minimap{overflow:hidden;border:1px solid rgba(255,255,255,.1);border-radius:8px;background:#080d12}
+.architecture-legend{position:absolute;top:14px;left:14px;z-index:5;display:flex;align-items:center;gap:13px;padding:7px 9px;color:#7f8a94;background:rgba(7,11,15,.86);border:1px solid rgba(255,255,255,.09);border-radius:8px;font-family:"DM Mono";font-size:7px;text-transform:uppercase;letter-spacing:.04em;pointer-events:none}
+.architecture-legend span{display:flex;align-items:center;gap:5px}.architecture-legend i{width:15px;height:2px;background:#6ee7ff}.architecture-legend i.inferred{height:1px;background:repeating-linear-gradient(90deg,#8292a3 0 4px,transparent 4px 7px)}.architecture-legend em{font-style:normal;color:#59636d}
+.architecture-inspector{
+  position:relative;
+  min-width:0;
+  padding:20px 18px 24px;
+  overflow-y:auto;
+  border-left:1px solid rgba(255,255,255,.1);
+  background:linear-gradient(180deg,rgba(13,19,25,.98),rgba(7,11,15,.98));
+}
+.architecture-inspector-close{position:absolute;top:13px;right:13px;width:27px;height:27px;display:grid;place-items:center;color:#7e8992;background:transparent;border:0;border-radius:6px}.architecture-inspector-close:hover{color:white;background:rgba(255,255,255,.06)}
+.architecture-inspector-kicker{display:flex;align-items:center;gap:8px;color:#77828c;font-family:"DM Mono";font-size:8px;text-transform:uppercase;letter-spacing:.07em}
+.architecture-inspector-kicker>span{width:28px;height:28px;display:grid;place-items:center;color:#071016;border-radius:7px}
+.architecture-inspector h4{margin:15px 0 6px;font-family:"Space Grotesk";font-size:18px;letter-spacing:-.035em}.architecture-inspector>p{margin:0;color:#8c97a0;font-size:10px;line-height:1.55}
+.architecture-inspector-meta{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:15px 0;padding:9px 0;border-top:1px solid rgba(255,255,255,.08);border-bottom:1px solid rgba(255,255,255,.08)}
+.architecture-inspector-meta>b{color:#aeb8c1;font-family:"DM Mono";font-size:8px;font-weight:500}
+.architecture-inspector-section{margin-top:17px}.architecture-inspector-section>span{display:flex;align-items:center;gap:5px;margin-bottom:8px;color:#68737d;font-family:"DM Mono";font-size:7px;text-transform:uppercase;letter-spacing:.08em}
+.architecture-inspector-section>p{margin:0;color:#9aa4ad;font-size:10px;line-height:1.6}
+.architecture-inspector-section ul{display:grid;gap:7px;margin:0;padding:0;list-style:none}.architecture-inspector-section>ul:not(.architecture-evidence-list):not(.architecture-connection-summary) li{position:relative;padding-left:12px;color:#9aa4ad;font-size:10px;line-height:1.45}.architecture-inspector-section>ul:not(.architecture-evidence-list):not(.architecture-connection-summary) li:before{content:"";position:absolute;left:0;top:6px;width:4px;height:4px;border-radius:50%;background:var(--accent)}
+.architecture-evidence-list code{display:block;padding:8px;color:#9ca8b2;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.07);border-radius:7px;font-family:"DM Mono";font-size:8px;line-height:1.45;overflow-wrap:anywhere}
+.architecture-connection-summary li{display:grid;grid-template-columns:1fr auto;gap:2px 8px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.07)}.architecture-connection-summary b{color:#64707a;font-family:"DM Mono";font-size:7px;text-transform:uppercase}.architecture-connection-summary em{grid-row:span 2;color:#c8d0d6;font-size:9px;font-style:normal}.architecture-connection-summary small{color:#75818b;font-family:"DM Mono";font-size:7px}
+@media(max-width:1000px){.architecture-canvas-shell.has-inspector{grid-template-columns:minmax(0,1fr) 250px}.architecture-filters label{min-width:118px}}
+@media(max-width:760px){
+  .architecture-workspace-head{align-items:center}.architecture-workspace-head p{display:none}
+  .architecture-canvas-shell.has-inspector{grid-template-columns:1fr}.architecture-inspector{max-height:420px;border-left:0;border-top:1px solid rgba(255,255,255,.1)}
+  .architecture-react-flow,.architecture-react-flow .react-flow{min-height:520px;height:520px}
+  .architecture-canvas-shell{min-height:520px}.architecture-legend em{display:none}
+}
+
 /* Accurate, restrained report confidence gauge. */
 .overall-score{
   width:172px;

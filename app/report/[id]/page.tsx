@@ -10,6 +10,7 @@ import { use, useState } from "react";
 import { api } from "@/lib/api";
 import type { ReportDetail, ReportDocument } from "@/lib/types";
 import { ArchitectureDiagram, ERDiagram, FlowDiagram } from "@/components/report/diagrams";
+import { ArchitectureWorkspace } from "@/components/report/ArchitectureWorkspace";
 import { ClassTag, ConfidenceChip, ConfidenceGauge, EvidenceList, ReasoningNote, SectionHead, UnableToDetermine } from "@/components/report/primitives";
 import { FindingsList, GradeBadge, MetricsStrip } from "@/components/report/findings";
 import { RequireAuth } from "@/components/RequireAuth";
@@ -240,7 +241,7 @@ function ArchitectureSection({ doc }: { doc: ReportDocument }) {
         <article><b>{observed || arch.nodes.length}</b><span>observed</span></article>
         <article><b>{inferred}</b><span>inferred</span></article>
       </div>
-      <div className="diagram-frame"><ArchitectureDiagram arch={arch} /></div>
+      <ArchitectureWorkspace arch={arch} productName={doc.meta.product_name} />
 
       {!!arch.request_flows?.length && (
         <div className="architecture-block">
