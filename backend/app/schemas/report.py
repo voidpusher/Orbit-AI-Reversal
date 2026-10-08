@@ -134,6 +134,30 @@ class WorkflowRunListResponse(BaseModel):
     items: list[WorkflowRunResponse]
 
 
+class PutWorkflowVaultRequest(BaseModel):
+    secrets: dict[str, str] = Field(default_factory=dict)
+
+
+class WorkflowVaultStatusResponse(BaseModel):
+    available: bool
+    configured_keys: list[str]
+    updated_at: datetime | None
+
+
+class UpdateWorkflowNotificationsRequest(BaseModel):
+    slack_webhook: str | None = None
+    email: str | None = None
+    disable_slack: bool = False
+    disable_email: bool = False
+
+
+class WorkflowNotificationStatusResponse(BaseModel):
+    slack_enabled: bool
+    email_enabled: bool
+    email_provider_available: bool
+    updated_at: datetime | None
+
+
 class StatsResponse(BaseModel):
     total_analyses: int
     completed_reports: int

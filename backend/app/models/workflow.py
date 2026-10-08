@@ -68,3 +68,26 @@ class WorkflowRun(Base):
     error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
     result: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     repair_proposal: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+
+
+class WorkflowSecret(Base):
+    """Write-only AES-GCM vault entry scoped to one tenant and workflow."""
+
+    __tablename__ = "workflow_secrets"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "workflow_id", "name", name="uq_workflow_secret_name"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_string)
+    organization_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    workflow_id: Mapped[str] = mapped_column(
+        ForeignKey("workflow_definitions.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    ciphertext: Mapped[str] = mapped_column(Text, nullable=False)
+    nonce: Mapped[str] = mapped_column(String(64), nullable=False)
+    key_version: Mapped[str] = mapped_column(String(32), nullable=False, default="v1")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=now_utc)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=now_utc, onupdate=now_utc
+    )

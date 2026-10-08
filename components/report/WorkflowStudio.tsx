@@ -6,18 +6,21 @@ import {
   AlertTriangle,
   ArrowRight,
   Braces,
+  Bell,
   Check,
   Copy,
   Download,
   Eye,
   FileCode2,
   Loader2,
+  LockKeyhole,
   Play,
   Radio,
   RotateCcw,
   Route,
   Save,
   ShieldCheck,
+  Trash2,
   Wrench,
   Workflow,
 } from "lucide-react";
@@ -184,6 +187,7 @@ export function WorkflowStudio({
       </div>
 
       {compiled && <CompiledWorkspace
+        reportId={reportId}
         compiled={compiled}
         productName={productName}
         artifact={artifact}
@@ -210,6 +214,7 @@ export function WorkflowStudio({
 }
 
 function CompiledWorkspace({
+  reportId,
   compiled,
   productName,
   artifact,
@@ -231,6 +236,7 @@ function CompiledWorkspace({
   setRuntimeInput,
   runHistory,
 }: {
+  reportId: string;
   compiled: CompiledWorkflow;
   productName: string;
   artifact: ExportKind;
@@ -317,7 +323,7 @@ function CompiledWorkspace({
             <h3>Save, replay, diagnose</h3>
             <p>Orbit runs the evidence-backed contract in an isolated browser and stores only redacted outcomes.</p>
           </div>
-          <span className="workflow-secret-note"><ShieldCheck size={13} /> Runtime inputs are never stored</span>
+          <span className="workflow-secret-note"><ShieldCheck size={13} /> Runtime inputs are redacted from run history</span>
         </div>
 
         {demoMode ? (
@@ -353,7 +359,7 @@ function CompiledWorkspace({
                       autoComplete="off"
                       value={runtimeInputs[input] ?? ""}
                       onChange={(event) => setRuntimeInput(input, event.target.value)}
-                      placeholder={`Enter ${input} for this run only`}
+                      placeholder={`Enter ${input} for this run or seal it below`}
                     />
                   </label>
                 ))}
@@ -362,7 +368,14 @@ function CompiledWorkspace({
 
             {(saveError || runError) && <p className="workflow-error"><AlertTriangle size={14} /> {saveError || runError}</p>}
             {saved && <p className="workflow-saved-state"><Check size={13} /> Saved as version {saved.version} · {saved.schedule} monitoring{saved.next_run_at ? ` · next check ${new Date(saved.next_run_at).toLocaleString()}` : ""}</p>}
-            {schedule !== "manual" && requiredInputs.length > 0 && <p className="workflow-schedule-warning"><AlertTriangle size={13} /> Scheduled runs cannot store these inputs and will remain blocked until an encrypted credential vault is connected.</p>}
+
+            <ProductionControls
+              reportId={reportId}
+              saved={saved}
+              requiredInputs={requiredInputs}
+              runtimeInputs={runtimeInputs}
+              clearRuntimeInputs={() => requiredInputs.forEach((key) => setRuntimeInput(key, ""))}
+            />
 
             <RunLedger runs={runHistory} />
           </>
@@ -382,6 +395,120 @@ function CompiledWorkspace({
         </div>
         <pre><code>{activeCode}</code></pre>
       </div>
+    </div>
+  );
+}
+
+function ProductionControls({
+  reportId,
+  saved,
+  requiredInputs,
+  runtimeInputs,
+  clearRuntimeInputs,
+}: {
+  reportId: string;
+  saved: SavedWorkflow | null;
+  requiredInputs: string[];
+  runtimeInputs: Record<string, string>;
+  clearRuntimeInputs: () => void;
+}) {
+  const [slackWebhook, setSlackWebhook] = useState("");
+  const [alertEmail, setAlertEmail] = useState("");
+
+  const vault = useQuery({
+    queryKey: ["workflow-vault", reportId, saved?.id],
+    queryFn: () => api.workflowVaultStatus(reportId, saved!.id),
+    enabled: Boolean(saved),
+  });
+  const notifications = useQuery({
+    queryKey: ["workflow-notifications", reportId, saved?.id],
+    queryFn: () => api.workflowNotificationStatus(reportId, saved!.id),
+    enabled: Boolean(saved),
+  });
+  const saveVault = useMutation({
+    mutationFn: () => api.saveWorkflowVault(
+      reportId,
+      saved!.id,
+      Object.fromEntries(requiredInputs.map((key) => [key, runtimeInputs[key] ?? ""])),
+    ),
+    onSuccess: () => {
+      void vault.refetch();
+      clearRuntimeInputs();
+    },
+  });
+  const clearVault = useMutation({
+    mutationFn: () => api.clearWorkflowVault(reportId, saved!.id),
+    onSuccess: () => void vault.refetch(),
+  });
+  const saveAlerts = useMutation({
+    mutationFn: () => api.updateWorkflowNotifications(reportId, saved!.id, {
+      ...(slackWebhook ? { slack_webhook: slackWebhook } : {}),
+      ...(alertEmail ? { email: alertEmail } : {}),
+    }),
+    onSuccess: () => {
+      void notifications.refetch();
+      setSlackWebhook("");
+      setAlertEmail("");
+    },
+  });
+  const clearAlerts = useMutation({
+    mutationFn: () => api.updateWorkflowNotifications(reportId, saved!.id, {
+      disable_slack: true,
+      disable_email: true,
+    }),
+    onSuccess: () => void notifications.refetch(),
+  });
+
+  if (!saved) {
+    return <div className="workflow-production-locked"><LockKeyhole size={14} /> Save the workflow before configuring encrypted inputs or alerts.</div>;
+  }
+
+  const vaultReady = vault.data?.available ?? false;
+  const allInputsPresent = requiredInputs.every((key) => Boolean(runtimeInputs[key]));
+  const vaultConfigured = requiredInputs.length > 0 && requiredInputs.every(
+    (key) => vault.data?.configured_keys.includes(key),
+  );
+  const alertsConfigured = Boolean(notifications.data?.slack_enabled || notifications.data?.email_enabled);
+  const error = vault.error ?? notifications.error ?? saveVault.error ?? clearVault.error
+    ?? saveAlerts.error ?? clearAlerts.error;
+
+  return (
+    <div className="workflow-production-controls">
+      {requiredInputs.length > 0 && (
+        <section className="workflow-secure-card">
+          <header>
+            <i><LockKeyhole size={15} /></i>
+            <span><b>Encrypted runtime vault</b><small>AES-256-GCM · values are write-only</small></span>
+            <em className={vaultConfigured ? "configured" : "pending"}>{vaultConfigured ? "secured" : vaultReady ? "not configured" : "unavailable"}</em>
+          </header>
+          <p>Seal the current runtime inputs for unattended runs. Saving replaces the previous encrypted value and clears the plaintext fields from this page.</p>
+          <div className="workflow-secure-actions">
+            <button className="button secondary" disabled={!vaultReady || !allInputsPresent || saveVault.isPending} onClick={() => saveVault.mutate()}>
+              {saveVault.isPending ? <Loader2 className="spin" size={13} /> : <LockKeyhole size={13} />}
+              {vaultConfigured ? "Rotate encrypted inputs" : "Seal inputs for monitoring"}
+            </button>
+            {vaultConfigured && <button className="workflow-danger-action" disabled={clearVault.isPending} onClick={() => clearVault.mutate()}><Trash2 size={12} /> Clear vault</button>}
+          </div>
+        </section>
+      )}
+
+      <section className="workflow-secure-card">
+        <header>
+          <i><Bell size={15} /></i>
+          <span><b>Failure notifications</b><small>Only status, failed step, and error code are sent</small></span>
+          <em className={alertsConfigured ? "configured" : "pending"}>{alertsConfigured ? "active" : "not configured"}</em>
+        </header>
+        <div className="workflow-alert-fields">
+          <label><span>Slack webhook</span><input type="password" autoComplete="off" value={slackWebhook} onChange={(event) => setSlackWebhook(event.target.value)} placeholder={notifications.data?.slack_enabled ? "Configured · paste to rotate" : "https://hooks.slack.com/services/…"} /></label>
+          <label><span>Alert email</span><input type="email" autoComplete="off" value={alertEmail} onChange={(event) => setAlertEmail(event.target.value)} placeholder={notifications.data?.email_enabled ? "Configured · enter to rotate" : "engineering@example.com"} /></label>
+        </div>
+        {notifications.data && !notifications.data.email_provider_available && <p className="workflow-provider-note">Email delivery activates after the Resend provider key and verified sender are configured. Slack works immediately.</p>}
+        <div className="workflow-secure-actions">
+          <button className="button secondary" disabled={!vaultReady || (!slackWebhook && !alertEmail) || saveAlerts.isPending} onClick={() => saveAlerts.mutate()}>{saveAlerts.isPending ? <Loader2 className="spin" size={13} /> : <Bell size={13} />} Save destinations</button>
+          {alertsConfigured && <button className="workflow-danger-action" disabled={clearAlerts.isPending} onClick={() => clearAlerts.mutate()}><Trash2 size={12} /> Disable alerts</button>}
+        </div>
+      </section>
+      {error && <p className="workflow-error"><AlertTriangle size={14} /> {error.message}</p>}
     </div>
   );
 }

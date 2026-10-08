@@ -33,8 +33,10 @@ pretending to have access to private source code or infrastructure.
   isolated browser. Orbit records a redacted per-step run ledger, surfaces the
   first failure, and proposes selector repairs that require explicit approval.
 - Manual, daily, and weekly monitors share the same replay engine. Scheduled
-  runs are protected by `CRON_SECRET`; flows needing runtime input block safely
-  because Orbit never stores plaintext credentials or typed values.
+  runs are protected by `CRON_SECRET`. Required inputs can be kept in a
+  tenant-scoped, write-only AES-256-GCM vault and are decrypted only inside the
+  isolated runner. Failed runs can notify an encrypted Slack webhook or email
+  destination without including captured inputs or page content.
 
 ## What Orbit can report
 
@@ -103,7 +105,11 @@ staging builds are protected by default; set `ORBIT_AUTH_DISABLED=true` and
 
 Production replay requires `ORBIT_CAPTURE_SECRET` and the serverless browser
 route. Set `CRON_SECRET` to a random value of at least 16 characters to activate
-the protected scheduled-monitor endpoint registered in `vercel.json`.
+the protected scheduled-monitor endpoint registered in `vercel.json`. Set
+`ORBIT_VAULT_KEY` to a stable base64-url encoded 32-byte key to activate saved
+workflow credentials and notification destinations. Slack delivery needs no
+additional provider secret; email delivery additionally requires
+`ORBIT_RESEND_API_KEY` and `ORBIT_NOTIFICATION_FROM_EMAIL`.
 
 ## License
 

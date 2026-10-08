@@ -380,8 +380,22 @@ export interface WorkflowRun {
     status?: string;
     message?: string;
     steps?: WorkflowRunStep[];
+    notifications?: { channel: string; status: string; error_code?: string }[];
   };
   repair_proposal: WorkflowRepairProposal | null;
+}
+
+export interface WorkflowVaultStatus {
+  available: boolean;
+  configured_keys: string[];
+  updated_at: string | null;
+}
+
+export interface WorkflowNotificationStatus {
+  slack_enabled: boolean;
+  email_enabled: boolean;
+  email_provider_available: boolean;
+  updated_at: string | null;
 }
 
 export interface ReportDetail extends ReportListItem {

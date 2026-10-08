@@ -13,7 +13,9 @@ import type {
   Stats,
   WorkflowContract,
   WorkflowCapturePayload,
+  WorkflowNotificationStatus,
   WorkflowRun,
+  WorkflowVaultStatus,
 } from "./types";
 import { clearToken, getToken } from "./auth";
 
@@ -163,6 +165,32 @@ export const api = {
 
   listWorkflowRuns: (reportId: string, workflowId: string) =>
     request<{ items: WorkflowRun[] }>(`/api/v1/reports/${reportId}/workflows/${workflowId}/runs`),
+
+  workflowVaultStatus: (reportId: string, workflowId: string) =>
+    request<WorkflowVaultStatus>(`/api/v1/reports/${reportId}/workflows/${workflowId}/vault`),
+
+  saveWorkflowVault: (reportId: string, workflowId: string, secrets: Record<string, string>) =>
+    request<WorkflowVaultStatus>(`/api/v1/reports/${reportId}/workflows/${workflowId}/vault`, {
+      method: "PUT",
+      body: JSON.stringify({ secrets }),
+    }),
+
+  clearWorkflowVault: (reportId: string, workflowId: string) =>
+    request<WorkflowVaultStatus>(`/api/v1/reports/${reportId}/workflows/${workflowId}/vault`, {
+      method: "DELETE",
+    }),
+
+  workflowNotificationStatus: (reportId: string, workflowId: string) =>
+    request<WorkflowNotificationStatus>(`/api/v1/reports/${reportId}/workflows/${workflowId}/notifications`),
+
+  updateWorkflowNotifications: (
+    reportId: string,
+    workflowId: string,
+    update: { slack_webhook?: string; email?: string; disable_slack?: boolean; disable_email?: boolean },
+  ) => request<WorkflowNotificationStatus>(
+    `/api/v1/reports/${reportId}/workflows/${workflowId}/notifications`,
+    { method: "PUT", body: JSON.stringify(update) },
+  ),
 
   updateReport: (id: string, patch: { is_favorite?: boolean; label?: string }) =>
     request<unknown>(`/api/v1/reports/${id}`, {

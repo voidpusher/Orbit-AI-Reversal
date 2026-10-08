@@ -1,4 +1,5 @@
 from collections.abc import AsyncIterator
+import base64
 
 import httpx
 import pytest
@@ -12,6 +13,7 @@ async def workflow_client(tmp_path, monkeypatch) -> AsyncIterator[tuple[httpx.As
     monkeypatch.setenv("ORBIT_DATABASE_URL", f"sqlite+aiosqlite:///{tmp_path / 'workflows.db'}")
     monkeypatch.setenv("ORBIT_AUTH_DISABLED", "true")
     monkeypatch.setenv("ORBIT_BROWSER_EXPLORATION", "false")
+    monkeypatch.setenv("ORBIT_VAULT_KEY", base64.urlsafe_b64encode(b"v" * 32).decode())
     from app.core.config import get_settings
     get_settings.cache_clear()
     from app.main import app
@@ -51,7 +53,16 @@ def _contract() -> dict:
         "name": "Public smoke test",
         "target_url": "https://acme.example/app",
         "status": "ready",
-        "steps": [{"id": "step-1", "kind": "navigate", "action": "Open app"}],
+        "steps": [
+            {"id": "step-1", "kind": "navigate", "action": "Open app"},
+            {
+                "id": "step-2",
+                "kind": "input",
+                "action": "Enter email",
+                "selector": "#email",
+                "input_kind": "email",
+            },
+        ],
     }
 
 
@@ -99,3 +110,73 @@ async def test_save_version_list_and_redacted_run(workflow_client, monkeypatch) 
     history = await client.get(f"/api/v1/reports/{report_id}/workflows/{workflow['id']}/runs")
     assert history.status_code == 200
     assert history.json()["items"][0]["status"] == "passed"
+
+
+@pytest.mark.asyncio
+async def test_vault_is_write_only_and_supplies_saved_inputs(workflow_client, monkeypatch) -> None:
+    client, report_id = workflow_client
+    created = await client.post(
+        f"/api/v1/reports/{report_id}/workflows",
+        json={"contract": _contract(), "schedule": "manual"},
+    )
+    workflow_id = created.json()["id"]
+
+    saved = await client.put(
+        f"/api/v1/reports/{report_id}/workflows/{workflow_id}/vault",
+        json={"secrets": {"email": "vault-user@example.com"}},
+    )
+    assert saved.status_code == 200, saved.text
+    assert saved.json()["available"] is True
+    assert saved.json()["configured_keys"] == ["email"]
+    assert "vault-user@example.com" not in saved.text
+
+    status_response = await client.get(
+        f"/api/v1/reports/{report_id}/workflows/{workflow_id}/vault"
+    )
+    assert status_response.status_code == 200
+    assert status_response.json()["configured_keys"] == ["email"]
+    assert "vault-user@example.com" not in status_response.text
+
+    async def fake_run(self, contract, inputs):
+        assert inputs == {"email": "vault-user@example.com"}
+        return {
+            "status": "passed",
+            "error_code": None,
+            "failure_step_id": None,
+            "duration_ms": 10,
+            "steps": [],
+            "repair_proposal": None,
+            "message": "Replay completed",
+        }
+
+    monkeypatch.setattr("app.api.v1.reports.WorkflowRunner.run", fake_run)
+    run = await client.post(
+        f"/api/v1/reports/{report_id}/workflows/{workflow_id}/runs",
+        json={"inputs": {}},
+    )
+    assert run.status_code == 200, run.text
+    assert run.json()["status"] == "passed"
+    assert "vault-user@example.com" not in run.text
+
+    cleared = await client.delete(
+        f"/api/v1/reports/{report_id}/workflows/{workflow_id}/vault"
+    )
+    assert cleared.status_code == 200
+    assert cleared.json()["configured_keys"] == []
+
+
+@pytest.mark.asyncio
+async def test_vault_rejects_inputs_not_declared_by_contract(workflow_client) -> None:
+    client, report_id = workflow_client
+    created = await client.post(
+        f"/api/v1/reports/{report_id}/workflows",
+        json={"contract": _contract(), "schedule": "manual"},
+    )
+    workflow_id = created.json()["id"]
+
+    response = await client.put(
+        f"/api/v1/reports/{report_id}/workflows/{workflow_id}/vault",
+        json={"secrets": {"password": "must-not-be-stored"}},
+    )
+    assert response.status_code == 422
+    assert "password" in response.json()["detail"]

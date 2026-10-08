@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from sqlalchemy import func, or_, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.api.dependencies import get_auth_context
@@ -17,6 +17,7 @@ from app.models import (
     WorkflowDefinition,
     WorkflowRun,
     WorkflowRunStatus,
+    WorkflowSecret,
 )
 from app.schemas import (
     AskReportRequest,
@@ -29,22 +30,37 @@ from app.schemas import (
     ReportDetail,
     ReportListItem,
     ReportListResponse,
+    PutWorkflowVaultRequest,
     RunWorkflowRequest,
     SaveWorkflowRequest,
     SavedWorkflowListResponse,
     StatsResponse,
     UpdateReportRequest,
+    UpdateWorkflowNotificationsRequest,
     WorkflowListResponse,
     WorkflowDefinitionResponse,
     WorkflowRunListResponse,
     WorkflowRunResponse,
+    WorkflowNotificationStatusResponse,
+    WorkflowVaultStatusResponse,
 )
 from app.services.auth import AuthContext
 from app.services.compare import build_comparison
 from app.services.copilot import answer_report_question
 from app.services.export import render_markdown
 from app.services.workflow_compiler import available_workflows, compile_workflow
-from app.services.workflow_runner import WorkflowRunner, blocked_result_from_exception, validate_workflow_contract
+from app.services.vault import WorkflowVault, list_secret_entries, load_secrets, upsert_secret
+from app.services.workflow_notifications import (
+    WorkflowNotifier,
+    validate_alert_email,
+    validate_slack_webhook,
+)
+from app.services.workflow_runner import (
+    WorkflowRunner,
+    blocked_result_from_exception,
+    required_inputs,
+    validate_workflow_contract,
+)
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 
@@ -121,6 +137,28 @@ def _run_response(run: WorkflowRun) -> WorkflowRunResponse:
         started_at=run.started_at, completed_at=run.completed_at, duration_ms=run.duration_ms,
         failure_step_id=run.failure_step_id, error_code=run.error_code,
         result=run.result, repair_proposal=run.repair_proposal,
+    )
+
+
+def _vault_status(entries: list[WorkflowSecret], available: bool) -> WorkflowVaultStatusResponse:
+    input_entries = [item for item in entries if item.name.startswith("input.")]
+    return WorkflowVaultStatusResponse(
+        available=available,
+        configured_keys=[item.name.removeprefix("input.") for item in input_entries],
+        updated_at=max((item.updated_at for item in input_entries), default=None),
+    )
+
+
+def _notification_status(
+    entries: list[WorkflowSecret], *, email_provider_available: bool
+) -> WorkflowNotificationStatusResponse:
+    names = {item.name for item in entries}
+    notification_entries = [item for item in entries if item.name.startswith("notification.")]
+    return WorkflowNotificationStatusResponse(
+        slack_enabled="notification.slack_webhook" in names,
+        email_enabled="notification.email" in names,
+        email_provider_available=email_provider_available,
+        updated_at=max((item.updated_at for item in notification_entries), default=None),
     )
 
 
@@ -413,6 +451,214 @@ async def list_saved_workflows(
         return SavedWorkflowListResponse(items=[_workflow_response(item) for item in rows])
 
 
+@router.get(
+    "/{report_id}/workflows/{workflow_id}/vault",
+    response_model=WorkflowVaultStatusResponse,
+)
+async def workflow_vault_status(
+    report_id: str,
+    workflow_id: str,
+    request: Request,
+    factory: async_sessionmaker[AsyncSession] = Depends(get_session_factory),
+    ctx: AuthContext = Depends(get_auth_context),
+) -> WorkflowVaultStatusResponse:
+    async with factory() as session:
+        await _load_workflow(session, report_id, workflow_id, ctx.organization.id)
+        entries = await list_secret_entries(
+            session, organization_id=ctx.organization.id, workflow_id=workflow_id
+        )
+    return _vault_status(entries, WorkflowVault.available(request.app.state.settings))
+
+
+@router.put(
+    "/{report_id}/workflows/{workflow_id}/vault",
+    response_model=WorkflowVaultStatusResponse,
+)
+async def put_workflow_vault(
+    report_id: str,
+    workflow_id: str,
+    payload: PutWorkflowVaultRequest,
+    request: Request,
+    factory: async_sessionmaker[AsyncSession] = Depends(get_session_factory),
+    ctx: AuthContext = Depends(get_auth_context),
+) -> WorkflowVaultStatusResponse:
+    if ctx.role not in {Role.OWNER, Role.ADMIN}:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Only owners and admins can manage workflow secrets")
+    try:
+        vault = WorkflowVault(request.app.state.settings)
+    except RuntimeError as error:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(error)) from error
+    if not payload.secrets:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "At least one runtime input is required")
+
+    async with factory() as session:
+        workflow = await _load_workflow(session, report_id, workflow_id, ctx.organization.id)
+        allowed = set(required_inputs(workflow.contract))
+        unknown = sorted(set(payload.secrets) - allowed)
+        if unknown:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_CONTENT,
+                f"Contract does not declare runtime input: {', '.join(unknown)}",
+            )
+        for key, value in payload.secrets.items():
+            if not value or len(value) > 2000:
+                raise HTTPException(
+                    status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    f"Runtime input {key} must contain 1 to 2000 characters",
+                )
+            await upsert_secret(
+                session,
+                vault,
+                organization_id=ctx.organization.id,
+                workflow_id=workflow_id,
+                name=f"input.{key}",
+                value=value,
+            )
+        session.add(AuditLog(
+            organization_id=ctx.organization.id,
+            actor_id=ctx.user.id,
+            action="workflow.vault.updated",
+            target_type="workflow",
+            target_id=workflow_id,
+            metadata_json={"keys": sorted(payload.secrets)},
+        ))
+        await session.commit()
+        entries = await list_secret_entries(
+            session, organization_id=ctx.organization.id, workflow_id=workflow_id
+        )
+        return _vault_status(entries, True)
+
+
+@router.delete(
+    "/{report_id}/workflows/{workflow_id}/vault",
+    response_model=WorkflowVaultStatusResponse,
+)
+async def clear_workflow_vault(
+    report_id: str,
+    workflow_id: str,
+    request: Request,
+    factory: async_sessionmaker[AsyncSession] = Depends(get_session_factory),
+    ctx: AuthContext = Depends(get_auth_context),
+) -> WorkflowVaultStatusResponse:
+    if ctx.role not in {Role.OWNER, Role.ADMIN}:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Only owners and admins can manage workflow secrets")
+    async with factory() as session:
+        await _load_workflow(session, report_id, workflow_id, ctx.organization.id)
+        await session.execute(delete(WorkflowSecret).where(
+            WorkflowSecret.organization_id == ctx.organization.id,
+            WorkflowSecret.workflow_id == workflow_id,
+            WorkflowSecret.name.like("input.%"),
+        ))
+        session.add(AuditLog(
+            organization_id=ctx.organization.id,
+            actor_id=ctx.user.id,
+            action="workflow.vault.cleared",
+            target_type="workflow",
+            target_id=workflow_id,
+        ))
+        await session.commit()
+        entries = await list_secret_entries(
+            session, organization_id=ctx.organization.id, workflow_id=workflow_id
+        )
+    return _vault_status(entries, WorkflowVault.available(request.app.state.settings))
+
+
+@router.get(
+    "/{report_id}/workflows/{workflow_id}/notifications",
+    response_model=WorkflowNotificationStatusResponse,
+)
+async def workflow_notification_status(
+    report_id: str,
+    workflow_id: str,
+    request: Request,
+    factory: async_sessionmaker[AsyncSession] = Depends(get_session_factory),
+    ctx: AuthContext = Depends(get_auth_context),
+) -> WorkflowNotificationStatusResponse:
+    async with factory() as session:
+        await _load_workflow(session, report_id, workflow_id, ctx.organization.id)
+        entries = await list_secret_entries(
+            session, organization_id=ctx.organization.id, workflow_id=workflow_id
+        )
+    settings = request.app.state.settings
+    return _notification_status(
+        entries,
+        email_provider_available=bool(settings.resend_api_key and settings.notification_from_email),
+    )
+
+
+@router.put(
+    "/{report_id}/workflows/{workflow_id}/notifications",
+    response_model=WorkflowNotificationStatusResponse,
+)
+async def update_workflow_notifications(
+    report_id: str,
+    workflow_id: str,
+    payload: UpdateWorkflowNotificationsRequest,
+    request: Request,
+    factory: async_sessionmaker[AsyncSession] = Depends(get_session_factory),
+    ctx: AuthContext = Depends(get_auth_context),
+) -> WorkflowNotificationStatusResponse:
+    if ctx.role not in {Role.OWNER, Role.ADMIN}:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Only owners and admins can manage notifications")
+    if not any((payload.slack_webhook, payload.email, payload.disable_slack, payload.disable_email)):
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "No notification change was supplied")
+    try:
+        vault = WorkflowVault(request.app.state.settings)
+        slack = validate_slack_webhook(payload.slack_webhook) if payload.slack_webhook else None
+        email = validate_alert_email(payload.email) if payload.email else None
+    except ValueError as error:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)) from error
+    except RuntimeError as error:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(error)) from error
+
+    async with factory() as session:
+        await _load_workflow(session, report_id, workflow_id, ctx.organization.id)
+        if payload.disable_slack:
+            await session.execute(delete(WorkflowSecret).where(
+                WorkflowSecret.organization_id == ctx.organization.id,
+                WorkflowSecret.workflow_id == workflow_id,
+                WorkflowSecret.name == "notification.slack_webhook",
+            ))
+        if payload.disable_email:
+            await session.execute(delete(WorkflowSecret).where(
+                WorkflowSecret.organization_id == ctx.organization.id,
+                WorkflowSecret.workflow_id == workflow_id,
+                WorkflowSecret.name == "notification.email",
+            ))
+        if slack:
+            await upsert_secret(
+                session, vault, organization_id=ctx.organization.id, workflow_id=workflow_id,
+                name="notification.slack_webhook", value=slack,
+            )
+        if email:
+            await upsert_secret(
+                session, vault, organization_id=ctx.organization.id, workflow_id=workflow_id,
+                name="notification.email", value=email,
+            )
+        changed = []
+        if slack or payload.disable_slack:
+            changed.append("slack")
+        if email or payload.disable_email:
+            changed.append("email")
+        session.add(AuditLog(
+            organization_id=ctx.organization.id,
+            actor_id=ctx.user.id,
+            action="workflow.notifications.updated",
+            target_type="workflow",
+            target_id=workflow_id,
+            metadata_json={"channels": changed},
+        ))
+        await session.commit()
+        entries = await list_secret_entries(
+            session, organization_id=ctx.organization.id, workflow_id=workflow_id
+        )
+    settings = request.app.state.settings
+    return _notification_status(
+        entries,
+        email_provider_available=bool(settings.resend_api_key and settings.notification_from_email),
+    )
+
+
 @router.post("/{report_id}/workflows/{workflow_id}/runs", response_model=WorkflowRunResponse)
 async def run_saved_workflow(
     report_id: str,
@@ -427,6 +673,22 @@ async def run_saved_workflow(
         if workflow.status != "active":
             raise HTTPException(status.HTTP_409_CONFLICT, "Workflow is paused")
         contract = dict(workflow.contract)
+        saved_inputs: dict[str, str] = {}
+        try:
+            vault = WorkflowVault(request.app.state.settings)
+            secret_values = await load_secrets(
+                session,
+                vault,
+                organization_id=ctx.organization.id,
+                workflow_id=workflow.id,
+            )
+            saved_inputs = {
+                key.removeprefix("input."): value
+                for key, value in secret_values.items()
+                if key.startswith("input.")
+            }
+        except RuntimeError:
+            pass
         run = WorkflowRun(
             organization_id=ctx.organization.id, workflow_id=workflow.id,
             status=WorkflowRunStatus.RUNNING, trigger="manual", result={},
@@ -438,9 +700,20 @@ async def run_saved_workflow(
 
     started = time.perf_counter()
     try:
-        outcome = await WorkflowRunner(request.app.state.settings).run(contract, payload.inputs)
+        outcome = await WorkflowRunner(request.app.state.settings).run(
+            contract, {**saved_inputs, **payload.inputs}
+        )
     except Exception as error:
         outcome = blocked_result_from_exception(error)
+    deliveries = await WorkflowNotifier(request.app.state.settings, factory).notify_failure(
+        workflow_id=workflow_id,
+        organization_id=ctx.organization.id,
+        workflow_name=workflow.name,
+        report_id=report_id,
+        outcome=outcome,
+    )
+    if deliveries:
+        outcome["notifications"] = deliveries
     duration_ms = int(outcome.get("duration_ms") or round((time.perf_counter() - started) * 1000))
 
     async with factory() as session:

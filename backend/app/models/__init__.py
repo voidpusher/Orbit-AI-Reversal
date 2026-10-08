@@ -9,7 +9,13 @@ from app.models.identity import (
     User,
 )
 from app.models.report import Report, ReportClaim
-from app.models.workflow import WorkflowDefinition, WorkflowRun, WorkflowRunStatus, WorkflowStatus
+from app.models.workflow import (
+    WorkflowDefinition,
+    WorkflowRun,
+    WorkflowRunStatus,
+    WorkflowSecret,
+    WorkflowStatus,
+)
 
 __all__ = [
     "Analysis",
@@ -28,5 +34,6 @@ __all__ = [
     "WorkflowDefinition",
     "WorkflowRun",
     "WorkflowRunStatus",
+    "WorkflowSecret",
     "WorkflowStatus",
 ]

@@ -14,6 +14,8 @@ from fastapi import APIRouter, Header, HTTPException, Request, status
 from sqlalchemy import select
 
 from app.models import AuditLog, WorkflowDefinition, WorkflowRun, WorkflowRunStatus
+from app.services.vault import WorkflowVault, load_secrets
+from app.services.workflow_notifications import WorkflowNotifier
 from app.services.workflow_runner import WorkflowRunner, blocked_result_from_exception
 
 router = APIRouter(prefix="/workflows", tags=["workflow operations"])
@@ -48,12 +50,31 @@ async def run_due_workflows(request: Request, authorization: str | None = Header
                 WorkflowDefinition.next_run_at <= now,
             ).order_by(WorkflowDefinition.next_run_at).limit(3)
         )).all())
-        due_payload = [(item.id, item.organization_id, dict(item.contract), item.schedule) for item in due]
+        due_payload = [
+            (
+                item.id, item.organization_id, item.report_id, item.name,
+                dict(item.contract), item.schedule,
+            )
+            for item in due
+        ]
 
     completed = 0
     blocked = 0
-    for workflow_id, organization_id, contract, schedule in due_payload:
+    for workflow_id, organization_id, report_id, workflow_name, contract, schedule in due_payload:
         async with factory() as session:
+            saved_inputs: dict[str, str] = {}
+            try:
+                vault = WorkflowVault(settings)
+                secret_values = await load_secrets(
+                    session, vault, organization_id=organization_id, workflow_id=workflow_id
+                )
+                saved_inputs = {
+                    key.removeprefix("input."): value
+                    for key, value in secret_values.items()
+                    if key.startswith("input.")
+                }
+            except RuntimeError:
+                pass
             run = WorkflowRun(
                 organization_id=organization_id, workflow_id=workflow_id,
                 status=WorkflowRunStatus.RUNNING, trigger="scheduled", result={},
@@ -65,9 +86,18 @@ async def run_due_workflows(request: Request, authorization: str | None = Header
 
         started = time.perf_counter()
         try:
-            outcome = await WorkflowRunner(settings).run(contract, {})
+            outcome = await WorkflowRunner(settings).run(contract, saved_inputs)
         except Exception as error:
             outcome = blocked_result_from_exception(error)
+        deliveries = await WorkflowNotifier(settings, factory).notify_failure(
+            workflow_id=workflow_id,
+            organization_id=organization_id,
+            workflow_name=workflow_name,
+            report_id=report_id,
+            outcome=outcome,
+        )
+        if deliveries:
+            outcome["notifications"] = deliveries
         finished = datetime.now(timezone.utc)
 
         async with factory() as session:

@@ -18,7 +18,9 @@ All endpoints are versioned under `/api/v1`, require an authenticated organizati
 | `POST` | `/reports/{report_id}/workflows/compile` | Compile a journey into an evidence-linked contract and Playwright artifact |
 | `POST` | `/reports/{report_id}/workflows` | Save or version a compiled contract and monitoring cadence |
 | `GET` | `/reports/{report_id}/workflows/saved` | List persisted workflow definitions |
-| `POST` | `/reports/{report_id}/workflows/{workflow_id}/runs` | Run an isolated replay with ephemeral runtime inputs |
+| `GET` / `PUT` / `DELETE` | `/reports/{report_id}/workflows/{workflow_id}/vault` | Inspect keys, encrypt/rotate values, or clear saved runtime inputs |
+| `GET` / `PUT` | `/reports/{report_id}/workflows/{workflow_id}/notifications` | Inspect or update encrypted Slack/email failure destinations |
+| `POST` | `/reports/{report_id}/workflows/{workflow_id}/runs` | Run an isolated replay with saved and/or ephemeral runtime inputs |
 | `GET` | `/reports/{report_id}/workflows/{workflow_id}/runs` | List redacted replay results and repair proposals |
 | `GET` | `/workflows/run-due` | Protected Vercel Cron entrypoint for due daily/weekly monitors |
 | `GET` | `/me` | Current identity, organization, entitlement summary |
@@ -53,10 +55,14 @@ automation readiness, unresolved blockers, a JSON export, and a Playwright
 test starter. Inferred report steps remain marked as inferred and require an
 authorized browser recording before Orbit labels the automation ready.
 
-Runtime inputs sent to the replay endpoint are held only for that invocation;
-they are excluded from workflow definitions, run records, audit metadata, and
-error messages. Selector repair candidates never modify the contract
-automatically and always carry `requires_approval: true`.
+Runtime inputs sent directly to the replay endpoint are held only for that
+invocation. Owners and admins may instead save contract-declared inputs in the
+write-only workflow vault. Values are encrypted with AES-256-GCM using tenant,
+workflow, entry name, and key version as authenticated context. Read responses
+return configured key names only; plaintext values are excluded from workflow
+definitions, run records, audit metadata, notification payloads, and error
+messages. Selector repair candidates never modify the contract automatically
+and always carry `requires_approval: true`.
 
 ## Contract rules
 

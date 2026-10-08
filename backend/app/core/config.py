@@ -101,6 +101,11 @@ class Settings(BaseSettings):
     workflow_replay_url: str | None = None
     capture_secret: str | None = None
     cron_secret: str | None = Field(default_factory=_default_cron_secret)
+    # Base64-encoded 32-byte AES key. Vault entries are unusable when omitted.
+    vault_key: str | None = None
+    # Optional email delivery through Resend. Slack webhooks need no provider key.
+    resend_api_key: str | None = None
+    notification_from_email: str | None = None
     redis_url: str | None = None
     queue_driver: str = "in_process"
     # Internal Next.js producer used by the Python API when Vercel Queues is enabled.
