@@ -15,6 +15,8 @@ from app.schemas.auth import (
     UserProfile,
 )
 from app.schemas.report import (
+    AskReportRequest,
+    AskReportResponse,
     ComparisonResponse,
     ExportRequest,
     ExportResponse,
@@ -30,6 +32,8 @@ __all__ = [
     "AnalysisEventResponse",
     "AnalysisOptions",
     "AnalysisResponse",
+    "AskReportRequest",
+    "AskReportResponse",
     "AuthMeResponse",
     "AuthResponse",
     "ComparisonResponse",

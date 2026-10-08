@@ -3,6 +3,7 @@ import type {
   AnalysisOptions,
   AuthResult,
   Comparison,
+  CopilotAnswer,
   HarImportPayload,
   Me,
   ReportDetail,
@@ -117,6 +118,12 @@ export const api = {
   },
 
   getReport: (id: string) => request<ReportDetail>(`/api/v1/reports/${id}`),
+
+  askReport: (id: string, question: string) =>
+    request<CopilotAnswer>(`/api/v1/reports/${id}/ask`, {
+      method: "POST",
+      body: JSON.stringify({ question }),
+    }),
 
   updateReport: (id: string, patch: { is_favorite?: boolean; label?: string }) =>
     request<unknown>(`/api/v1/reports/${id}`, {

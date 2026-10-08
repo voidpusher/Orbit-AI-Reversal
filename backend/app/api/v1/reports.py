@@ -8,6 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.api.dependencies import get_auth_context
 from app.models import Analysis, AuditLog, Report, Role
 from app.schemas import (
+    AskReportRequest,
+    AskReportResponse,
     ComparisonResponse,
     ExportRequest,
     ExportResponse,
@@ -19,6 +21,7 @@ from app.schemas import (
 )
 from app.services.auth import AuthContext
 from app.services.compare import build_comparison
+from app.services.copilot import answer_report_question
 from app.services.export import render_markdown
 
 router = APIRouter(prefix="/reports", tags=["reports"])
@@ -231,3 +234,20 @@ async def export_report(
             ensure_ascii=False,
         )
         return ExportResponse(format="json", filename=f"orbit-{slug}.json", content=content)
+
+
+@router.post("/{report_id}/ask", response_model=AskReportResponse)
+async def ask_report(
+    report_id: str,
+    payload: AskReportRequest,
+    factory: async_sessionmaker[AsyncSession] = Depends(get_session_factory),
+    ctx: AuthContext = Depends(get_auth_context),
+) -> AskReportResponse:
+    question = payload.question.strip()
+    if not question:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Question is required")
+    if len(question) > 600:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Question must be 600 characters or fewer")
+    async with factory() as session:
+        report = await _load(session, report_id, ctx.organization.id)
+        return AskReportResponse.model_validate(answer_report_question(report.document or {}, question))

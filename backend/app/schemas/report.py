@@ -45,6 +45,28 @@ class ExportResponse(BaseModel):
     content: str
 
 
+class AskReportRequest(BaseModel):
+    question: str
+
+
+class CopilotCitation(BaseModel):
+    id: str
+    section: str
+    title: str
+    evidence: str
+    classification: str
+    confidence: int
+
+
+class AskReportResponse(BaseModel):
+    answer: str
+    basis: str
+    confidence: int
+    citations: list[CopilotCitation]
+    limitations: list[str]
+    followups: list[str]
+
+
 class StatsResponse(BaseModel):
     total_analyses: int
     completed_reports: int

@@ -2,6 +2,7 @@
 
 import {
   ArrowLeft,
+  Bot,
   Boxes,
   Braces,
   ChevronRight,
@@ -20,11 +21,13 @@ import {
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ArchitectureWorkspace } from "@/components/report/ArchitectureWorkspace";
+import { AskOrbit } from "@/components/report/AskOrbit";
 import { ConfidenceChip, ConfidenceGauge } from "@/components/report/primitives";
 import { OrbitLogo } from "@/components/OrbitLogo";
 import type { ReportDocument } from "@/lib/types";
 
 const NAV_ITEMS = [
+  ["Ask Orbit", Bot],
   ["Overview", LayoutDashboard],
   ["Architecture", Network],
   ["User flows", Workflow],
@@ -241,7 +244,9 @@ export default function DemoReportPage() {
           </div>
         </header>
 
-        {active === "Architecture" ? (
+        {active === "Ask Orbit" ? (
+          <AskOrbit productName="Linear" architecture={DEMO_ARCHITECTURE} />
+        ) : active === "Architecture" ? (
           <DemoArchitecture />
         ) : (
           <DemoOverview onOpenArchitecture={() => setActive("Architecture")} />

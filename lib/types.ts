@@ -237,6 +237,24 @@ export interface ReportListItem {
   published_at: string;
 }
 
+export interface CopilotCitation {
+  id: string;
+  section: string;
+  title: string;
+  evidence: string;
+  classification: "observed" | "inferred";
+  confidence: number;
+}
+
+export interface CopilotAnswer {
+  answer: string;
+  basis: "observed" | "inferred" | "mixed" | "insufficient";
+  confidence: number;
+  citations: CopilotCitation[];
+  limitations: string[];
+  followups: string[];
+}
+
 export interface ReportDetail extends ReportListItem {
   summary: string;
   evidence_count: number;
