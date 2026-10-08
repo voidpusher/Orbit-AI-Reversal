@@ -54,6 +54,7 @@ class AnalysisInputs:
     signals: Signals = field(default_factory=Signals)
     page_signals: list[dict] = field(default_factory=list)
     probes: dict = field(default_factory=dict)
+    workflow_captures: list[dict] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -119,6 +120,8 @@ def extract_inputs(analysis_url: str, evidence: list[EvidenceItem]) -> AnalysisI
                     inputs.api_paths.append(path)
         elif item.kind == "site_probe":
             inputs.probes = item.metadata_json or {}
+        elif item.kind == "workflow_capture":
+            inputs.workflow_captures.append(dict(meta))
     return inputs
 
 
@@ -309,6 +312,49 @@ def infer_user_flows(inputs: AnalysisInputs, features: list[dict]) -> dict:
     flows: list[dict] = []
     basis: list[str] = []
 
+    for capture in inputs.workflow_captures:
+        capture_steps = [step for step in capture.get("steps") or [] if isinstance(step, dict)]
+        readable_steps: list[str] = []
+        normalized_steps: list[dict] = []
+        for index, step in enumerate(capture_steps):
+            step_type = str(step.get("type") or "")
+            selector = str(step.get("selector") or "").strip()
+            if step_type == "navigate":
+                path = urlsplit(str(step.get("url") or inputs.url)).path or "/"
+                label = f"Open {path}"
+            elif step_type == "click":
+                label = f"Click {_selector_label(selector)}"
+            elif step_type == "change":
+                label = f"Fill {_selector_label(selector)} ({step.get('value_kind') or 'text'} value redacted)"
+            elif step_type == "keyDown":
+                label = f"Press {step.get('key') or 'key'}"
+            elif step_type == "scroll":
+                label = "Scroll page"
+            elif step_type == "waitForElement":
+                label = f"Wait for {_selector_label(selector)}"
+            else:
+                continue
+            readable_steps.append(label)
+            normalized_steps.append({
+                "id": str(step.get("id") or f"capture-{index + 1}"),
+                "type": step_type,
+                "label": label,
+                **({"selector": selector} if selector else {}),
+                **({"url": str(step.get("url"))} if step.get("url") else {}),
+                **({"key": str(step.get("key"))} if step.get("key") else {}),
+                **({"value_kind": str(step.get("value_kind"))} if step.get("value_kind") else {}),
+            })
+        if readable_steps:
+            flows.append({
+                "name": str(capture.get("title") or "Captured workflow"),
+                "steps": readable_steps,
+                "confidence": 96 if all(step.get("selector") or step.get("type") in {"navigate", "keyDown", "scroll"} for step in normalized_steps) else 88,
+                "classification": "observed",
+                "capture_steps": normalized_steps,
+                "evidence": [f"Authorized DevTools Recorder capture with {len(normalized_steps)} sanitized actions"],
+            })
+            basis.append("an authorized browser workflow recording")
+
     # Each journey is emitted only when the surface that implies it was observed —
     # no generic "signup → dashboard" flow for sites without an auth surface.
     if "Authentication" in feature_names:
@@ -339,12 +385,29 @@ def infer_user_flows(inputs: AnalysisInputs, features: list[dict]) -> dict:
                          "so inferring a signup or activation flow would be a guess rather than an inference.",
         }
     return {
-        "summary": "Primary product journeys inferred from the feature surfaces actually discovered.",
+        "summary": "Product journeys reconstructed from captured actions and observed feature surfaces.",
         "confidence": round(sum(f["confidence"] for f in flows) / len(flows)),
         "flows": flows,
-        "reasoning": f"Journeys are reconstructed from {', '.join(basis)}. Individual steps are conventional "
-                     "for such surfaces and are not each independently observed.",
+        "reasoning": (
+            f"Journeys are reconstructed from {', '.join(basis)}. Recorder-backed actions are directly observed; "
+            "steps derived only from feature surfaces remain conventional inferences."
+        ),
     }
+
+
+def _selector_label(selector: str) -> str:
+    if not selector:
+        return "captured element"
+    aria = re.search(r"aria[/=]([^\]\"']+)", selector, flags=re.I)
+    if aria:
+        return aria.group(1).strip()
+    text = re.search(r"text[/=]([^\]\"']+)", selector, flags=re.I)
+    if text:
+        return text.group(1).strip()
+    placeholder = re.search(r"placeholder[=\"']+([^\]\"']+)", selector, flags=re.I)
+    if placeholder:
+        return placeholder.group(1).strip()
+    return selector[:80]
 
 
 # Features that imply the product stores per-account data (so entities can be inferred).

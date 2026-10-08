@@ -10,6 +10,7 @@ from app.api.v1.analyses import router as analyses_router
 from app.api.v1.auth import router as auth_router
 from app.api.v1.oauth import router as oauth_router
 from app.api.v1.reports import router as reports_router
+from app.api.v1.workflows import router as workflows_router
 from app.core.config import get_settings
 from app.core.database import create_engine, create_session_factory, initialize_database, run_migrations
 from app.core.observability import init_observability
@@ -25,6 +26,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
+    app.state.settings = settings
     init_observability(settings)
     engine = create_engine(settings.database_url)
     session_factory = create_session_factory(engine)
@@ -72,6 +74,7 @@ app.include_router(auth_router, prefix=API_PREFIX)
 app.include_router(oauth_router, prefix=API_PREFIX)
 app.include_router(analyses_router, prefix=API_PREFIX)
 app.include_router(reports_router, prefix=API_PREFIX)
+app.include_router(workflows_router, prefix=API_PREFIX)
 
 
 @app.get("/healthz", tags=["operations"])

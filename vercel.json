@@ -15,12 +15,21 @@
           "retryAfterSeconds": 30
         }
       ]
+    },
+    "app/api/workflow-replay/route.ts": {
+      "maxDuration": 120
     }
   },
   "rewrites": [
     {
       "source": "/api/v1/(.*)",
       "destination": "/api?__orbit_path=v1/$1"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/v1/workflows/run-due",
+      "schedule": "0 3 * * *"
     }
   ]
 }

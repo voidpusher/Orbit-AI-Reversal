@@ -1,28 +1,50 @@
 import base64
 import json
+import time
+from datetime import datetime, timedelta, timezone
+from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.api.dependencies import get_auth_context
-from app.models import Analysis, AuditLog, Report, Role
+from app.models import (
+    Analysis,
+    AuditLog,
+    Report,
+    Role,
+    WorkflowDefinition,
+    WorkflowRun,
+    WorkflowRunStatus,
+)
 from app.schemas import (
     AskReportRequest,
     AskReportResponse,
+    CompileWorkflowRequest,
+    CompileWorkflowResponse,
     ComparisonResponse,
     ExportRequest,
     ExportResponse,
     ReportDetail,
     ReportListItem,
     ReportListResponse,
+    RunWorkflowRequest,
+    SaveWorkflowRequest,
+    SavedWorkflowListResponse,
     StatsResponse,
     UpdateReportRequest,
+    WorkflowListResponse,
+    WorkflowDefinitionResponse,
+    WorkflowRunListResponse,
+    WorkflowRunResponse,
 )
 from app.services.auth import AuthContext
 from app.services.compare import build_comparison
 from app.services.copilot import answer_report_question
 from app.services.export import render_markdown
+from app.services.workflow_compiler import available_workflows, compile_workflow
+from app.services.workflow_runner import WorkflowRunner, blocked_result_from_exception, validate_workflow_contract
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 
@@ -63,6 +85,43 @@ async def _load(session: AsyncSession, report_id: str, org_id: str) -> Report:
     if report is None or report.is_deleted or report.organization_id != org_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Report not found")
     return report
+
+
+async def _load_workflow(
+    session: AsyncSession, report_id: str, workflow_id: str, org_id: str
+) -> WorkflowDefinition:
+    workflow = await session.get(WorkflowDefinition, workflow_id)
+    if workflow is None or workflow.report_id != report_id or workflow.organization_id != org_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Workflow not found")
+    return workflow
+
+
+def _workflow_response(workflow: WorkflowDefinition) -> WorkflowDefinitionResponse:
+    return WorkflowDefinitionResponse(
+        id=workflow.id, report_id=workflow.report_id, name=workflow.name,
+        target_url=workflow.target_url, version=workflow.version, status=workflow.status,
+        schedule=workflow.schedule, contract=workflow.contract,
+        created_at=workflow.created_at, updated_at=workflow.updated_at,
+        last_run_at=workflow.last_run_at, next_run_at=workflow.next_run_at,
+    )
+
+
+def _next_run(schedule: str, now: datetime | None = None) -> datetime | None:
+    current = now or datetime.now(timezone.utc)
+    if schedule == "daily":
+        return current + timedelta(days=1)
+    if schedule == "weekly":
+        return current + timedelta(days=7)
+    return None
+
+
+def _run_response(run: WorkflowRun) -> WorkflowRunResponse:
+    return WorkflowRunResponse(
+        id=run.id, workflow_id=run.workflow_id, status=run.status, trigger=run.trigger,
+        started_at=run.started_at, completed_at=run.completed_at, duration_ms=run.duration_ms,
+        failure_step_id=run.failure_step_id, error_code=run.error_code,
+        result=run.result, repair_proposal=run.repair_proposal,
+    )
 
 
 @router.get("", response_model=ReportListResponse)
@@ -251,3 +310,177 @@ async def ask_report(
     async with factory() as session:
         report = await _load(session, report_id, ctx.organization.id)
         return AskReportResponse.model_validate(answer_report_question(report.document or {}, question))
+
+
+@router.get("/{report_id}/workflows", response_model=WorkflowListResponse)
+async def list_report_workflows(
+    report_id: str,
+    factory: async_sessionmaker[AsyncSession] = Depends(get_session_factory),
+    ctx: AuthContext = Depends(get_auth_context),
+) -> WorkflowListResponse:
+    async with factory() as session:
+        report = await _load(session, report_id, ctx.organization.id)
+        return WorkflowListResponse(items=available_workflows(report.document or {}))
+
+
+@router.post("/{report_id}/workflows/compile", response_model=CompileWorkflowResponse)
+async def compile_report_workflow(
+    report_id: str,
+    payload: CompileWorkflowRequest,
+    factory: async_sessionmaker[AsyncSession] = Depends(get_session_factory),
+    ctx: AuthContext = Depends(get_auth_context),
+) -> CompileWorkflowResponse:
+    flow_name = payload.flow_name.strip()
+    if not flow_name or len(flow_name) > 160:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "A valid workflow name is required")
+    async with factory() as session:
+        report = await _load(session, report_id, ctx.organization.id)
+        try:
+            result = compile_workflow(report.document or {}, flow_name)
+        except ValueError as error:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, str(error)) from error
+        return CompileWorkflowResponse.model_validate(result)
+
+
+@router.post("/{report_id}/workflows", response_model=WorkflowDefinitionResponse, status_code=status.HTTP_201_CREATED)
+async def save_report_workflow(
+    report_id: str,
+    payload: SaveWorkflowRequest,
+    factory: async_sessionmaker[AsyncSession] = Depends(get_session_factory),
+    ctx: AuthContext = Depends(get_auth_context),
+) -> WorkflowDefinitionResponse:
+    try:
+        validate_workflow_contract(payload.contract)
+    except ValueError as error:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)) from error
+    if payload.schedule not in {"manual", "daily", "weekly"}:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Schedule must be manual, daily, or weekly")
+
+    async with factory() as session:
+        report = await _load(session, report_id, ctx.organization.id)
+        target_url = str(payload.contract.get("target_url") or "")
+        if urlsplit(target_url).hostname != urlsplit(report.target_url).hostname:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Workflow target must match its report host")
+        contract_key = str(payload.contract["id"])[:255]
+        workflow = await session.scalar(select(WorkflowDefinition).where(
+            WorkflowDefinition.organization_id == ctx.organization.id,
+            WorkflowDefinition.report_id == report_id,
+            WorkflowDefinition.contract_key == contract_key,
+        ))
+        if workflow is None:
+            workflow = WorkflowDefinition(
+                organization_id=ctx.organization.id, report_id=report_id, contract_key=contract_key,
+                name=str(payload.contract["name"])[:200], target_url=target_url,
+                contract=payload.contract, schedule=payload.schedule,
+                next_run_at=_next_run(payload.schedule),
+            )
+            session.add(workflow)
+            audit_action = "workflow.created"
+        else:
+            workflow.name = str(payload.contract["name"])[:200]
+            workflow.target_url = target_url
+            workflow.contract = payload.contract
+            workflow.schedule = payload.schedule
+            workflow.next_run_at = _next_run(payload.schedule)
+            workflow.version += 1
+            workflow.updated_at = datetime.now(timezone.utc)
+            audit_action = "workflow.updated"
+        await session.flush()
+        session.add(AuditLog(
+            organization_id=ctx.organization.id, actor_id=ctx.user.id, action=audit_action,
+            target_type="workflow", target_id=workflow.id,
+            metadata_json={"version": workflow.version, "schedule": workflow.schedule},
+        ))
+        await session.commit()
+        await session.refresh(workflow)
+        return _workflow_response(workflow)
+
+
+@router.get("/{report_id}/workflows/saved", response_model=SavedWorkflowListResponse)
+async def list_saved_workflows(
+    report_id: str,
+    factory: async_sessionmaker[AsyncSession] = Depends(get_session_factory),
+    ctx: AuthContext = Depends(get_auth_context),
+) -> SavedWorkflowListResponse:
+    async with factory() as session:
+        await _load(session, report_id, ctx.organization.id)
+        rows = list((await session.scalars(
+            select(WorkflowDefinition).where(
+                WorkflowDefinition.report_id == report_id,
+                WorkflowDefinition.organization_id == ctx.organization.id,
+            ).order_by(WorkflowDefinition.updated_at.desc())
+        )).all())
+        return SavedWorkflowListResponse(items=[_workflow_response(item) for item in rows])
+
+
+@router.post("/{report_id}/workflows/{workflow_id}/runs", response_model=WorkflowRunResponse)
+async def run_saved_workflow(
+    report_id: str,
+    workflow_id: str,
+    payload: RunWorkflowRequest,
+    request: Request,
+    factory: async_sessionmaker[AsyncSession] = Depends(get_session_factory),
+    ctx: AuthContext = Depends(get_auth_context),
+) -> WorkflowRunResponse:
+    async with factory() as session:
+        workflow = await _load_workflow(session, report_id, workflow_id, ctx.organization.id)
+        if workflow.status != "active":
+            raise HTTPException(status.HTTP_409_CONFLICT, "Workflow is paused")
+        contract = dict(workflow.contract)
+        run = WorkflowRun(
+            organization_id=ctx.organization.id, workflow_id=workflow.id,
+            status=WorkflowRunStatus.RUNNING, trigger="manual", result={},
+        )
+        session.add(run)
+        await session.commit()
+        await session.refresh(run)
+        run_id = run.id
+
+    started = time.perf_counter()
+    try:
+        outcome = await WorkflowRunner(request.app.state.settings).run(contract, payload.inputs)
+    except Exception as error:
+        outcome = blocked_result_from_exception(error)
+    duration_ms = int(outcome.get("duration_ms") or round((time.perf_counter() - started) * 1000))
+
+    async with factory() as session:
+        run = await session.get(WorkflowRun, run_id)
+        if run is None:
+            raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Workflow run was not persisted")
+        run.status = str(outcome.get("status") or WorkflowRunStatus.BLOCKED)
+        run.completed_at = datetime.now(timezone.utc)
+        run.duration_ms = duration_ms
+        run.failure_step_id = outcome.get("failure_step_id")
+        run.error_code = outcome.get("error_code")
+        run.repair_proposal = outcome.get("repair_proposal")
+        # Runtime inputs are deliberately absent from outcome and never persisted.
+        run.result = {key: value for key, value in outcome.items() if key != "repair_proposal"}
+        workflow = await session.get(WorkflowDefinition, workflow_id)
+        if workflow is not None:
+            workflow.last_run_at = run.completed_at
+        session.add(AuditLog(
+            organization_id=ctx.organization.id, actor_id=ctx.user.id, action="workflow.run.completed",
+            target_type="workflow_run", target_id=run.id,
+            metadata_json={"workflow_id": workflow_id, "status": run.status},
+        ))
+        await session.commit()
+        await session.refresh(run)
+        return _run_response(run)
+
+
+@router.get("/{report_id}/workflows/{workflow_id}/runs", response_model=WorkflowRunListResponse)
+async def list_workflow_runs(
+    report_id: str,
+    workflow_id: str,
+    factory: async_sessionmaker[AsyncSession] = Depends(get_session_factory),
+    ctx: AuthContext = Depends(get_auth_context),
+) -> WorkflowRunListResponse:
+    async with factory() as session:
+        await _load_workflow(session, report_id, workflow_id, ctx.organization.id)
+        rows = list((await session.scalars(
+            select(WorkflowRun).where(
+                WorkflowRun.workflow_id == workflow_id,
+                WorkflowRun.organization_id == ctx.organization.id,
+            ).order_by(WorkflowRun.started_at.desc()).limit(20)
+        )).all())
+        return WorkflowRunListResponse(items=[_run_response(item) for item in rows])

@@ -3,12 +3,17 @@ import type {
   AnalysisOptions,
   AuthResult,
   Comparison,
+  CompiledWorkflow,
   CopilotAnswer,
   HarImportPayload,
   Me,
   ReportDetail,
   ReportListResponse,
+  SavedWorkflow,
   Stats,
+  WorkflowContract,
+  WorkflowCapturePayload,
+  WorkflowRun,
 } from "./types";
 import { clearToken, getToken } from "./auth";
 
@@ -73,6 +78,8 @@ function idempotencyKey(): string {
 export const api = {
   me: () => request<Me>("/api/v1/me"),
 
+  oauthProviders: () => request<{ google: boolean; github: boolean }>("/api/v1/auth/oauth/providers"),
+
   signup: (email: string, name: string, password: string) =>
     request<AuthResult>("/api/v1/auth/signup", {
       method: "POST",
@@ -103,6 +110,13 @@ export const api = {
       body: JSON.stringify(payload),
     }),
 
+  importWorkflowAnalysis: (payload: WorkflowCapturePayload) =>
+    request<Analysis>("/api/v1/analyses/workflow", {
+      method: "POST",
+      headers: { "Idempotency-Key": idempotencyKey() },
+      body: JSON.stringify(payload),
+    }),
+
   getAnalysis: (id: string) => request<Analysis>(`/api/v1/analyses/${id}`),
 
   cancelAnalysis: (id: string) =>
@@ -124,6 +138,31 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ question }),
     }),
+
+  compileWorkflow: (id: string, flow_name: string) =>
+    request<CompiledWorkflow>(`/api/v1/reports/${id}/workflows/compile`, {
+      method: "POST",
+      body: JSON.stringify({ flow_name }),
+    }),
+
+  saveWorkflow: (reportId: string, contract: WorkflowContract, schedule: "manual" | "daily" | "weekly") =>
+    request<SavedWorkflow>(`/api/v1/reports/${reportId}/workflows`, {
+      method: "POST",
+      body: JSON.stringify({ contract, schedule }),
+    }),
+
+  listSavedWorkflows: (reportId: string) =>
+    request<{ items: SavedWorkflow[] }>(`/api/v1/reports/${reportId}/workflows/saved`),
+
+  runWorkflow: (reportId: string, workflowId: string, inputs: Record<string, string>) =>
+    request<WorkflowRun>(`/api/v1/reports/${reportId}/workflows/${workflowId}/runs`, {
+      method: "POST",
+      body: JSON.stringify({ inputs }),
+      signal: AbortSignal.timeout(110_000),
+    }),
+
+  listWorkflowRuns: (reportId: string, workflowId: string) =>
+    request<{ items: WorkflowRun[] }>(`/api/v1/reports/${reportId}/workflows/${workflowId}/runs`),
 
   updateReport: (id: string, patch: { is_favorite?: boolean; label?: string }) =>
     request<unknown>(`/api/v1/reports/${id}`, {

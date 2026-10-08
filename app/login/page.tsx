@@ -2,7 +2,7 @@
 
 import { ArrowRight, Github, Loader2, Lock, Mail, TriangleAlert, User } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { api, API_BASE, ApiError } from "@/lib/api";
 import { AUTH_DISABLED } from "@/lib/auth-config";
@@ -17,6 +17,7 @@ const OAUTH_ERRORS: Record<string, string> = {
   github_unconfigured: "GitHub sign-in isn’t configured on this server yet.",
   invalid_oauth_state: "That sign-in link expired. Please try again.",
   oauth_failed: "We couldn’t complete social sign-in. Please try again.",
+  oauth_account_conflict: "That email is linked to a different Orbit sign-in. Use the original provider or another account.",
   access_denied: "Sign-in was cancelled.",
 };
 
@@ -28,6 +29,12 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [oauthError, setOauthError] = useState<string | null>(null);
+  const { data: oauthProviders, isLoading: oauthProvidersLoading } = useQuery({
+    queryKey: ["oauth-providers"],
+    queryFn: api.oauthProviders,
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
 
   // Handle the OAuth redirect back to /login#token=… or /login#error=…
   useEffect(() => {
@@ -52,6 +59,10 @@ export default function LoginPage() {
   }, [queryClient, router]);
 
   const startOAuth = (provider: "google" | "github") => {
+    if (!oauthProviders?.[provider]) {
+      setOauthError(OAUTH_ERRORS[`${provider}_unconfigured`]);
+      return;
+    }
     window.location.href = `${API_BASE}/api/v1/auth/oauth/${provider}/start`;
   };
 
@@ -101,11 +112,11 @@ export default function LoginPage() {
         </div>
 
         <div className="auth-providers">
-          <button className="provider-button" onClick={() => startOAuth("google")}>
-            <GoogleMark /> Continue with Google
+          <button className="provider-button" onClick={() => startOAuth("google")} disabled={oauthProvidersLoading || !oauthProviders?.google} title={!oauthProvidersLoading && !oauthProviders?.google ? OAUTH_ERRORS.google_unconfigured : undefined}>
+            <GoogleMark /> Continue with Google {!oauthProvidersLoading && !oauthProviders?.google && <small>Unavailable</small>}
           </button>
-          <button className="provider-button" onClick={() => startOAuth("github")}>
-            <Github size={18} /> Continue with GitHub
+          <button className="provider-button" onClick={() => startOAuth("github")} disabled={oauthProvidersLoading || !oauthProviders?.github} title={!oauthProvidersLoading && !oauthProviders?.github ? OAUTH_ERRORS.github_unconfigured : undefined}>
+            <Github size={18} /> Continue with GitHub {!oauthProvidersLoading && !oauthProviders?.github && <small>Unavailable</small>}
           </button>
           <button
             className="provider-button auth-skip"

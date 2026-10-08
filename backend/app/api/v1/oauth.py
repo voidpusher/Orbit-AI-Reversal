@@ -1,7 +1,7 @@
 import logging
 from urllib.parse import urlencode
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
 from app.api.dependencies import get_auth_service
@@ -58,6 +58,9 @@ async def callback(
     except OAuthError as error:
         logger.warning("oauth exchange failed: %s", error)
         return _frontend_redirect(urlencode({"error": "oauth_failed"}))
+    except HTTPException as error:
+        logger.warning("oauth account linking rejected: %s", error.detail)
+        return _frontend_redirect(urlencode({"error": "oauth_account_conflict"}))
     except Exception:
         logger.exception("unexpected oauth failure")
         return _frontend_redirect(urlencode({"error": "oauth_failed"}))

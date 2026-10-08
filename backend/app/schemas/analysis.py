@@ -8,7 +8,7 @@ class AnalysisOptions(BaseModel):
     deep_crawl: bool = False
     max_pages: int = Field(default=20, ge=1, le=100)
     capture_network_requests: bool = True
-    evidence_mode: Literal["crawl", "har"] = "crawl"
+    evidence_mode: Literal["crawl", "har", "workflow"] = "crawl"
 
 
 class CreateAnalysisRequest(BaseModel):
@@ -30,6 +30,23 @@ class HarEntryRequest(BaseModel):
 class ImportHarRequest(BaseModel):
     target_url: HttpUrl
     entries: list[HarEntryRequest] = Field(min_length=1, max_length=500)
+    authorized_public_analysis: Literal[True] = True
+
+
+class WorkflowStepRequest(BaseModel):
+    type: Literal["navigate", "click", "change", "keyDown", "scroll", "waitForElement"]
+    selector: str | None = Field(default=None, max_length=500)
+    url: str | None = Field(default=None, max_length=500)
+    key: str | None = Field(default=None, max_length=40)
+    value_kind: Literal["text", "email", "password", "number", "search", "unknown"] | None = None
+    value_length: int | None = Field(default=None, ge=0, le=10_000)
+
+
+class ImportWorkflowRequest(BaseModel):
+    target_url: HttpUrl
+    title: str = Field(default="Captured workflow", min_length=1, max_length=160)
+    steps: list[WorkflowStepRequest] = Field(min_length=1, max_length=200)
+    entries: list[HarEntryRequest] = Field(default_factory=list, max_length=500)
     authorized_public_analysis: Literal[True] = True
 
 

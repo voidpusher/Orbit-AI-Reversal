@@ -142,14 +142,34 @@ class AuthService:
     async def oauth_upsert(
         self, provider: str, subject: str, email: str, name: str, avatar_url: str | None
     ) -> tuple[str, Session, User, Organization, str]:
-        """Find-or-create a user for a verified OAuth profile and open a session."""
+        """Find-or-create a user using the provider subject as the authoritative identity."""
         email = email.strip().lower()
+        profile_name = name.strip() or email.split("@")[0]
         async with self._sessions() as session:
-            user = await session.scalar(select(User).where(User.email == email))
+            provider_user = await session.scalar(
+                select(User).where(User.oauth_provider == provider, User.oauth_subject == subject)
+            )
+            email_user = await session.scalar(select(User).where(User.email == email))
+
+            if provider_user is not None:
+                if email_user is not None and email_user.id != provider_user.id:
+                    raise HTTPException(status.HTTP_409_CONFLICT, "That verified email belongs to another Orbit account")
+                user = provider_user
+                user.email = email
+            elif email_user is not None:
+                if email_user.oauth_provider is not None and (
+                    email_user.oauth_provider != provider or email_user.oauth_subject != subject
+                ):
+                    raise HTTPException(status.HTTP_409_CONFLICT, "This email is already linked to a different sign-in identity")
+                user = email_user
+                user.oauth_provider, user.oauth_subject = provider, subject
+            else:
+                user = None
+
             if user is None:
                 user = User(
                     email=email,
-                    name=name.strip() or email.split("@")[0],
+                    name=profile_name,
                     password_hash=None,
                     avatar_url=avatar_url,
                     oauth_provider=provider,
@@ -170,9 +190,9 @@ class AuthService:
                 ))
                 role = Role.OWNER
             else:
-                # Link the provider to an existing account and keep the avatar fresh.
-                if user.oauth_provider is None:
-                    user.oauth_provider, user.oauth_subject = provider, subject
+                # Reflect the provider profile that was actually selected. This avoids
+                # showing a stale name from an older local or social-login record.
+                user.name = profile_name
                 if avatar_url:
                     user.avatar_url = avatar_url
                 membership = await session.scalar(

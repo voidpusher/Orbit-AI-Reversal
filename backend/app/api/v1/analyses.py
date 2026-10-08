@@ -11,10 +11,11 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.api.dependencies import get_auth_context, get_auth_service, get_events, get_queue
 from app.core.config import get_settings
 from app.models import Analysis, AnalysisStatus, AuditLog, Report
-from app.schemas import AnalysisOptions, AnalysisResponse, CreateAnalysisRequest, ImportHarRequest
+from app.schemas import AnalysisOptions, AnalysisResponse, CreateAnalysisRequest, ImportHarRequest, ImportWorkflowRequest
 from app.services.auth import AuthContext, AuthService, PLAN_LIMITS
 from app.services.events import EventService
 from app.services.har_import import build_har_evidence
+from app.services.workflow_import import build_workflow_evidence
 from app.services.queue import AnalysisQueue
 from app.services.url_policy import normalize_public_url
 
@@ -165,6 +166,60 @@ async def import_har_analysis(
         {"network_entries": len(payload.entries), "evidence_items": len(evidence), "redaction_version": "har-v1"},
     )
     await events.append(analysis.id, "analysis.queued", "Analysis queued from imported browser evidence")
+    await queue.enqueue(analysis.id)
+    analysis = await load_analysis(factory, analysis.id)
+    async with factory() as session:
+        report_id = await session.scalar(
+            select(Report.id).where(Report.analysis_id == analysis.id, Report.is_deleted.is_(False))
+        )
+    return as_response(analysis, report_id)
+
+
+@router.post("/workflow", response_model=AnalysisResponse, status_code=status.HTTP_202_ACCEPTED)
+async def import_workflow_analysis(
+    payload: ImportWorkflowRequest,
+    idempotency_key: str = Header(min_length=8, max_length=255),
+    factory: async_sessionmaker[AsyncSession] = Depends(get_session_factory),
+    events: EventService = Depends(get_events),
+    queue: AnalysisQueue = Depends(get_queue),
+    ctx: AuthContext = Depends(get_auth_context),
+    auth: AuthService = Depends(get_auth_service),
+) -> AnalysisResponse:
+    settings = get_settings()
+    target_url = normalize_public_url(str(payload.target_url), settings.allowed_analysis_hosts)
+    target_parts = urlsplit(target_url)
+    target_url = urlunsplit((target_parts.scheme, target_parts.netloc, target_parts.path or "/", "", ""))
+    options = AnalysisOptions(
+        deep_crawl=False,
+        max_pages=min(50, max(1, len(payload.entries))),
+        capture_network_requests=bool(payload.entries),
+        evidence_mode="workflow",
+    )
+    analysis, created = await create_analysis_record(
+        factory=factory, auth=auth, ctx=ctx, target_url=target_url,
+        options=options, idempotency_key=idempotency_key,
+    )
+    if not created:
+        return as_response(analysis)
+
+    evidence = [build_workflow_evidence(analysis.id, target_url, payload.title, payload.steps)]
+    if payload.entries:
+        evidence.extend(build_har_evidence(analysis.id, payload.entries, (target_parts.hostname or "").lower()))
+    async with factory() as session:
+        session.add_all(evidence)
+        await session.commit()
+    await events.append(
+        analysis.id,
+        "workflow.imported",
+        "Sanitized browser workflow imported",
+        {
+            "workflow_steps": len(payload.steps),
+            "network_entries": len(payload.entries),
+            "evidence_items": len(evidence),
+            "redaction_version": "workflow-v1",
+        },
+    )
+    await events.append(analysis.id, "analysis.queued", "Analysis queued from captured workflow evidence")
     await queue.enqueue(analysis.id)
     analysis = await load_analysis(factory, analysis.id)
     async with factory() as session:

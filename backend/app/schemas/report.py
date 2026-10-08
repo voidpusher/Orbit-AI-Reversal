@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ReportListItem(BaseModel):
@@ -65,6 +65,73 @@ class AskReportResponse(BaseModel):
     citations: list[CopilotCitation]
     limitations: list[str]
     followups: list[str]
+
+
+class CompileWorkflowRequest(BaseModel):
+    flow_name: str
+
+
+class WorkflowSummary(BaseModel):
+    name: str
+    steps: int
+    confidence: int
+    classification: str
+
+
+class WorkflowListResponse(BaseModel):
+    items: list[WorkflowSummary]
+
+
+class CompileWorkflowResponse(BaseModel):
+    contract: dict[str, Any]
+    playwright: str
+    contract_json: str
+
+
+class SaveWorkflowRequest(BaseModel):
+    contract: dict[str, Any]
+    schedule: str = "manual"
+
+
+class RunWorkflowRequest(BaseModel):
+    inputs: dict[str, str] = Field(default_factory=dict)
+
+
+class WorkflowDefinitionResponse(BaseModel):
+    id: str
+    report_id: str
+    name: str
+    target_url: str
+    version: int
+    status: str
+    schedule: str
+    contract: dict[str, Any]
+    created_at: datetime
+    updated_at: datetime
+    last_run_at: datetime | None
+    next_run_at: datetime | None
+
+
+class WorkflowRunResponse(BaseModel):
+    id: str
+    workflow_id: str
+    status: str
+    trigger: str
+    started_at: datetime
+    completed_at: datetime | None
+    duration_ms: int | None
+    failure_step_id: str | None
+    error_code: str | None
+    result: dict[str, Any]
+    repair_proposal: dict[str, Any] | None
+
+
+class SavedWorkflowListResponse(BaseModel):
+    items: list[WorkflowDefinitionResponse]
+
+
+class WorkflowRunListResponse(BaseModel):
+    items: list[WorkflowRunResponse]
 
 
 class StatsResponse(BaseModel):

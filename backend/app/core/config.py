@@ -69,6 +69,20 @@ def _default_auth_disabled() -> bool:
     return not os.getenv("VERCEL") and environment not in {"production", "staging"}
 
 
+def _default_public_base_url() -> str:
+    host = os.getenv("VERCEL_PROJECT_PRODUCTION_URL") or os.getenv("VERCEL_URL")
+    return f"https://{host}" if host else "http://localhost:8000"
+
+
+def _default_frontend_base_url() -> str:
+    host = os.getenv("VERCEL_PROJECT_PRODUCTION_URL") or os.getenv("VERCEL_URL")
+    return f"https://{host}" if host else "http://localhost:3000"
+
+
+def _default_cron_secret() -> str | None:
+    return os.getenv("CRON_SECRET")
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_prefix="ORBIT_", extra="ignore")
 
@@ -82,7 +96,11 @@ class Settings(BaseSettings):
     # Optional serverless Chromium capture endpoint. This lets the Python API use
     # a real browser on Vercel while preserving the HTTP crawler as a fallback.
     browser_capture_url: str | None = None
+    # Optional isolated browser endpoint for saved-workflow replay. On Vercel,
+    # Orbit derives /api/workflow-replay from browser_capture_url when omitted.
+    workflow_replay_url: str | None = None
     capture_secret: str | None = None
+    cron_secret: str | None = Field(default_factory=_default_cron_secret)
     redis_url: str | None = None
     queue_driver: str = "in_process"
     # Internal Next.js producer used by the Python API when Vercel Queues is enabled.
@@ -111,8 +129,8 @@ class Settings(BaseSettings):
     # secret are present. `public_base_url` is this API's externally reachable
     # base (used to build the OAuth redirect_uri); `frontend_base_url` is where
     # the user is sent back after a successful sign-in.
-    public_base_url: str = "http://localhost:8000"
-    frontend_base_url: str = "http://localhost:3000"
+    public_base_url: str = Field(default_factory=_default_public_base_url)
+    frontend_base_url: str = Field(default_factory=_default_frontend_base_url)
     google_client_id: str | None = None
     google_client_secret: str | None = None
     github_client_id: str | None = None

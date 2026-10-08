@@ -119,10 +119,10 @@ class AnalysisExplorer:
         try:
             await self._set_status(analysis_id, AnalysisStatus.RUNNING, 5)
             evidence_mode = analysis.options.get("evidence_mode", "crawl")
-            if evidence_mode == "har":
+            if evidence_mode in {"har", "workflow"}:
                 await self._events.append(
                     analysis_id,
-                    "har.processing",
+                    f"{evidence_mode}.processing",
                     "Reconstructing the product from sanitized browser-session evidence",
                 )
             else:
@@ -132,7 +132,7 @@ class AnalysisExplorer:
                 await self._explore(analysis)
             if await self._is_cancelled(analysis_id):
                 return
-            if evidence_mode != "har":
+            if evidence_mode not in {"har", "workflow"}:
                 await self._run_site_probes(analysis)
             await self._set_status(analysis_id, AnalysisStatus.GENERATING_REPORT, 92)
             await self._events.append(

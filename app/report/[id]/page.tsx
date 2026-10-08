@@ -3,6 +3,7 @@
 import {
   ArrowLeft, Bot, Boxes, Cloud, Code2, Cpu, Database, Download, FileText, Gauge, GitBranch, Globe2,
   Layers3, Loader2, Lock, Network, Plug, Search, Server, ShieldCheck, Sparkles, Star, TriangleAlert, Users, Waypoints,
+  Workflow as WorkflowIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -12,13 +13,14 @@ import type { ReportDetail, ReportDocument } from "@/lib/types";
 import { ArchitectureDiagram, ERDiagram, FlowDiagram } from "@/components/report/diagrams";
 import { ArchitectureWorkspace } from "@/components/report/ArchitectureWorkspace";
 import { AskOrbit } from "@/components/report/AskOrbit";
+import { WorkflowStudio } from "@/components/report/WorkflowStudio";
 import { ClassTag, ConfidenceChip, ConfidenceGauge, EvidenceList, ReasoningNote, SectionHead, UnableToDetermine } from "@/components/report/primitives";
 import { FindingsList, GradeBadge, MetricsStrip } from "@/components/report/findings";
 import { RequireAuth } from "@/components/RequireAuth";
 import { OrbitLogo } from "@/components/OrbitLogo";
 
 const NAV: [React.ComponentType<{ size?: number }>, string][] = [
-  [Bot, "Ask Orbit"], [Layers3, "Overview"], [Network, "Architecture"], [Waypoints, "User flows"], [Sparkles, "Features"],
+  [WorkflowIcon, "Workflow Lab"], [Bot, "Ask Orbit"], [Layers3, "Overview"], [Network, "Architecture"], [Waypoints, "User flows"], [Sparkles, "Features"],
   [Boxes, "Entities"], [Users, "Permissions"], [Database, "Database"], [GitBranch, "API"],
   [Globe2, "Tech stack"], [Plug, "Integrations"], [Gauge, "Performance"], [Search, "SEO"],
   [Lock, "Privacy"], [Code2, "Engineering insights"], [Cpu, "Rendering"], [Cloud, "Infrastructure"],
@@ -116,6 +118,7 @@ function ReportViewerInner({ params }: { params: Promise<{ id: string }> }) {
         </header>
 
         {active === "Ask Orbit" && <AskOrbit reportId={id} productName={report.product_name} document={doc} />}
+        {active === "Workflow Lab" && <WorkflowStudio reportId={id} productName={report.product_name} document={doc} />}
         {active === "Overview" && <Overview report={report} setActive={setActive} />}
         {active === "Architecture" && <ArchitectureSection doc={doc} />}
         {active === "User flows" && <FlowsSection doc={doc} />}

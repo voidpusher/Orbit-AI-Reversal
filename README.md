@@ -23,6 +23,18 @@ pretending to have access to private source code or infrastructure.
 - Performance, security, privacy, SEO, accessibility, and infrastructure
   checks based on externally observable data.
 - Side-by-side report comparison and a structured 18-section report model.
+- **Orbit Workflow Lab** compiles a discovered journey into a versioned,
+  evidence-linked workflow contract with correlated API operations, explicit
+  automation blockers, and downloadable Playwright and JSON artifacts.
+- Authorized workflow capture imports a Chrome DevTools Recorder JSON export
+  plus an optional matching HAR. Orbit retains action order and stable selectors
+  while removing typed values, cookies, query strings, and request bodies locally.
+- Saved workflows are persisted as versioned contracts and can be replayed in an
+  isolated browser. Orbit records a redacted per-step run ledger, surfaces the
+  first failure, and proposes selector repairs that require explicit approval.
+- Manual, daily, and weekly monitors share the same replay engine. Scheduled
+  runs are protected by `CRON_SECRET`; flows needing runtime input block safely
+  because Orbit never stores plaintext credentials or typed values.
 
 ## What Orbit can report
 
@@ -36,6 +48,9 @@ pretending to have access to private source code or infrastructure.
   metadata, structured data, robots rules, and sitemap signals.
 - **Domain and API discovery** — DNS, email configuration, `security.txt`,
   OpenAPI, GraphQL, and native-app association-file checks.
+- **Executable workflow intelligence** — turn a supported journey into a
+  behavior trace, operation map, evidence ledger, and automation starter
+  without presenting inferred selectors or payloads as observed facts.
 
 Orbit distinguishes observed facts from reasoned inferences. When public
 evidence is insufficient, the report says so rather than guessing.
@@ -85,6 +100,10 @@ pytest
 Authentication is disabled by default for local development. Production and
 staging builds are protected by default; set `ORBIT_AUTH_DISABLED=true` and
 `NEXT_PUBLIC_AUTH_DISABLED=true` only when intentionally publishing a shared demo.
+
+Production replay requires `ORBIT_CAPTURE_SECRET` and the serverless browser
+route. Set `CRON_SECRET` to a random value of at least 16 characters to activate
+the protected scheduled-monitor endpoint registered in `vercel.json`.
 
 ## License
 

@@ -12,7 +12,7 @@ export interface AnalysisOptions {
   deep_crawl: boolean;
   max_pages: number;
   capture_network_requests: boolean;
-  evidence_mode?: "crawl" | "har";
+  evidence_mode?: "crawl" | "har" | "workflow";
 }
 
 export interface SanitizedHarEntry {
@@ -27,6 +27,23 @@ export interface SanitizedHarEntry {
 
 export interface HarImportPayload {
   target_url: string;
+  entries: SanitizedHarEntry[];
+  authorized_public_analysis: true;
+}
+
+export interface SanitizedWorkflowStep {
+  type: "navigate" | "click" | "change" | "keyDown" | "scroll" | "waitForElement";
+  selector?: string;
+  url?: string;
+  key?: string;
+  value_kind?: "text" | "email" | "password" | "number" | "search" | "unknown";
+  value_length?: number;
+}
+
+export interface WorkflowCapturePayload {
+  target_url: string;
+  title: string;
+  steps: SanitizedWorkflowStep[];
   entries: SanitizedHarEntry[];
   authorized_public_analysis: true;
 }
@@ -198,7 +215,17 @@ export interface ReportDocument {
     patterns?: ArchPattern[];
     unknowns?: string[];
   };
-  user_flows: Confidenced & { flows: { name: string; steps: string[]; confidence: number }[]; reasoning?: string };
+  user_flows: Confidenced & {
+    flows: {
+      name: string;
+      steps: string[];
+      confidence: number;
+      classification?: "observed" | "inferred";
+      evidence?: string[];
+      capture_steps?: SanitizedWorkflowStep[];
+    }[];
+    reasoning?: string;
+  };
   features: Confidenced & { items: Feature[] };
   entities: Confidenced & { items: Entity[]; relationships: { from: string; to: string; kind: string }[]; reasoning?: string };
   permissions: Confidenced & { roles: { name: string; capabilities: string[] }[]; reasoning?: string };
@@ -253,6 +280,108 @@ export interface CopilotAnswer {
   citations: CopilotCitation[];
   limitations: string[];
   followups: string[];
+}
+
+export interface WorkflowEvidence {
+  id: string;
+  source: string;
+  detail: string;
+  classification: "observed" | "inferred";
+  confidence: number;
+}
+
+export interface WorkflowStep {
+  id: string;
+  order: number;
+  action: string;
+  kind: "navigate" | "interaction" | "input" | "keyboard" | "scroll" | "request" | "assertion";
+  classification: "observed" | "inferred";
+  confidence: number;
+  evidence_ids: string[];
+  requires_review: boolean;
+  selector?: string;
+  url?: string;
+  key?: string;
+  input_kind?: string;
+}
+
+export interface WorkflowContract {
+  version: "orbit.workflow.v1";
+  id: string;
+  name: string;
+  product_name: string;
+  target_url: string;
+  classification: "observed" | "inferred";
+  confidence: number;
+  automation_readiness: number;
+  status: "ready" | "review_required";
+  steps: WorkflowStep[];
+  endpoints: {
+    method: string;
+    path: string;
+    confidence: number;
+    classification: "observed" | "inferred";
+    evidence_ids: string[];
+  }[];
+  evidence: WorkflowEvidence[];
+  unknowns: string[];
+}
+
+export interface CompiledWorkflow {
+  contract: WorkflowContract;
+  playwright: string;
+  contract_json: string;
+}
+
+export interface SavedWorkflow {
+  id: string;
+  report_id: string;
+  name: string;
+  target_url: string;
+  version: number;
+  status: "active" | "paused";
+  schedule: "manual" | "daily" | "weekly";
+  contract: WorkflowContract;
+  created_at: string;
+  updated_at: string;
+  last_run_at: string | null;
+  next_run_at: string | null;
+}
+
+export interface WorkflowRunStep {
+  step_id: string;
+  action: string;
+  status: "passed" | "failed";
+  duration_ms: number;
+  error_code?: string;
+  message?: string;
+}
+
+export interface WorkflowRepairProposal {
+  step_id: string;
+  old_selector: string;
+  proposed_selector: string;
+  confidence: number;
+  reason: string;
+  requires_approval: boolean;
+}
+
+export interface WorkflowRun {
+  id: string;
+  workflow_id: string;
+  status: "running" | "passed" | "failed" | "blocked";
+  trigger: "manual" | "scheduled";
+  started_at: string;
+  completed_at: string | null;
+  duration_ms: number | null;
+  failure_step_id: string | null;
+  error_code: string | null;
+  result: {
+    status?: string;
+    message?: string;
+    steps?: WorkflowRunStep[];
+  };
+  repair_proposal: WorkflowRepairProposal | null;
 }
 
 export interface ReportDetail extends ReportListItem {

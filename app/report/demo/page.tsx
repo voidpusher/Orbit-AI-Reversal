@@ -22,11 +22,13 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ArchitectureWorkspace } from "@/components/report/ArchitectureWorkspace";
 import { AskOrbit } from "@/components/report/AskOrbit";
+import { WorkflowStudio } from "@/components/report/WorkflowStudio";
 import { ConfidenceChip, ConfidenceGauge } from "@/components/report/primitives";
 import { OrbitLogo } from "@/components/OrbitLogo";
-import type { ReportDocument } from "@/lib/types";
+import type { CompiledWorkflow, ReportDocument, WorkflowContract } from "@/lib/types";
 
 const NAV_ITEMS = [
+  ["Workflow Lab", Workflow],
   ["Ask Orbit", Bot],
   ["Overview", LayoutDashboard],
   ["Architecture", Network],
@@ -39,6 +41,82 @@ const NAV_ITEMS = [
   ["Tech stack", GitBranch],
   ["Insights", Lightbulb],
 ] as const;
+
+const DEMO_WORKFLOW_DOCUMENT = {
+  user_flows: {
+    summary: "A captured issue creation journey correlated to its GraphQL mutation and realtime confirmation.",
+    confidence: 92,
+    reasoning: "The action sequence, GraphQL mutation, optimistic UI update, and websocket confirmation were observed in the same authorized capture.",
+    flows: [{
+      name: "Create and assign an issue",
+      steps: ["Open workspace", "Create issue", "Set assignee", "Submit issue", "Confirm realtime update"],
+      confidence: 92,
+      classification: "observed",
+    }],
+  },
+} as unknown as ReportDocument;
+
+const DEMO_WORKFLOW_CONTRACT: WorkflowContract = {
+  version: "orbit.workflow.v1",
+  id: "linear-app.create-and-assign-an-issue",
+  name: "Create and assign an issue",
+  product_name: "Linear",
+  target_url: "https://linear.app/acme/team/active",
+  classification: "observed",
+  confidence: 92,
+  automation_readiness: 86,
+  status: "ready",
+  steps: [
+    { id: "step-1", order: 1, action: "Open workspace", kind: "navigate", classification: "observed", confidence: 98, evidence_ids: ["E1"], requires_review: false },
+    { id: "step-2", order: 2, action: "Create issue", kind: "interaction", classification: "observed", confidence: 94, evidence_ids: ["E1", "E2"], requires_review: false },
+    { id: "step-3", order: 3, action: "Set assignee", kind: "interaction", classification: "observed", confidence: 91, evidence_ids: ["E2"], requires_review: false },
+    { id: "step-4", order: 4, action: "Submit issue", kind: "interaction", classification: "observed", confidence: 96, evidence_ids: ["E2", "E3"], requires_review: false },
+    { id: "step-5", order: 5, action: "Confirm realtime update", kind: "assertion", classification: "observed", confidence: 89, evidence_ids: ["E3"], requires_review: false },
+  ],
+  endpoints: [
+    { method: "POST", path: "/api/graphql", confidence: 96, classification: "observed", evidence_ids: ["E2"] },
+    { method: "WS", path: "/realtime", confidence: 91, classification: "observed", evidence_ids: ["E3"] },
+  ],
+  evidence: [
+    { id: "E1", source: "Browser recording", detail: "Issue composer opened from the workspace action menu.", classification: "observed", confidence: 98 },
+    { id: "E2", source: "GraphQL operation", detail: "IssueCreate mutation carried title, team, and assignee identifiers.", classification: "observed", confidence: 96 },
+    { id: "E3", source: "Realtime event", detail: "Websocket issue.created event confirmed the committed record.", classification: "observed", confidence: 91 },
+  ],
+  unknowns: [
+    "The server-side authorization policy is not visible in the client capture.",
+    "The generated selectors should be checked after major interface releases.",
+  ],
+};
+
+const DEMO_PLAYWRIGHT = `import { test, expect } from '@playwright/test';
+
+test('Create and assign an issue', async ({ page }) => {
+  await page.goto('https://linear.app/acme/team/active');
+
+  await test.step('Create issue', async () => {
+    await page.getByRole('button', { name: /create issue/i }).click();
+    await page.getByPlaceholder(/issue title/i).fill('Investigate checkout latency');
+  });
+
+  await test.step('Assign and submit', async () => {
+    const mutation = page.waitForResponse((response) =>
+      response.url().includes('/api/graphql') && response.request().method() === 'POST'
+    );
+    await page.getByRole('button', { name: /assignee/i }).click();
+    await page.getByRole('option', { name: /sanchit/i }).click();
+    await page.getByRole('button', { name: /create issue/i }).click();
+    await mutation;
+  });
+
+  await expect(page.getByText('Investigate checkout latency')).toBeVisible();
+});
+`;
+
+const DEMO_COMPILED_WORKFLOW: CompiledWorkflow = {
+  contract: DEMO_WORKFLOW_CONTRACT,
+  playwright: DEMO_PLAYWRIGHT,
+  contract_json: JSON.stringify(DEMO_WORKFLOW_CONTRACT, null, 2),
+};
 
 const DEMO_ARCHITECTURE: ReportDocument["architecture"] = {
   summary:
@@ -244,7 +322,9 @@ export default function DemoReportPage() {
           </div>
         </header>
 
-        {active === "Ask Orbit" ? (
+        {active === "Workflow Lab" ? (
+          <WorkflowStudio reportId="demo" productName="Linear" document={DEMO_WORKFLOW_DOCUMENT} demoResult={DEMO_COMPILED_WORKFLOW} />
+        ) : active === "Ask Orbit" ? (
           <AskOrbit productName="Linear" architecture={DEMO_ARCHITECTURE} />
         ) : active === "Architecture" ? (
           <DemoArchitecture />
