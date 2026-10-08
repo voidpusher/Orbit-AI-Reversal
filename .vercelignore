@@ -5,6 +5,10 @@ backend/.venv/
 backend/orbit_api.egg-info/
 backend/pytest-of-sanchit/
 .pytest-runtime-*/
+.pytest-runtime-browser-capture-20260714/
+.pytest-runtime-browser-capture-backend-20260714/
+.pytest_cache/
+.ruff_cache/
 backend/tests/
 backend/.env
 .claude/
