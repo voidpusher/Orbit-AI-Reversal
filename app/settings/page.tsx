@@ -86,13 +86,14 @@ function SettingsInner() {
                     <b>{plan.name}</b>
                     <strong>{plan.price}<small>{plan.price !== "Custom" ? "/mo" : ""}</small></strong>
                     <ul>{plan.features.map((f) => <li key={f}><Check size={14} /> {f}</li>)}</ul>
-                    <button className={`button ${current ? "ghost" : "primary"} full`} disabled={current}>
-                      {current ? "Active" : plan.name === "Enterprise" ? "Contact sales" : "Upgrade"}
+                    <button className="button ghost full" disabled title={current ? "Your current plan" : "Billing is not enabled on this instance"}>
+                      {current ? "Active" : "Not available"}
                     </button>
                   </article>
                 );
               })}
             </div>
+            <p className="settings-note">Paid upgrades are not enabled on this instance.</p>
           </section>
 
           <section className="settings-card">

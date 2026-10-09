@@ -1,6 +1,7 @@
 "use client";
 
-import { ArrowRight, Bell, ChevronRight, Clock3, FileText, Globe2, Loader2, Plus, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowRight, ArrowUpRight, ChevronRight, FileText, Globe2, Loader2, Plus, ShieldCheck, Sparkles } from "lucide-react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -24,38 +25,55 @@ function DashboardInner() {
 
   const recent = reports?.items.slice(0, 6) ?? [];
   const firstName = me?.name?.split(" ")[0] ?? "there";
+  const [url, setUrl] = useState("");
+  const investigate = () => router.push(`/analyze${url.trim() ? `?url=${encodeURIComponent(url.trim())}` : ""}`);
 
   return (
-    <main className="dashboard">
+    <main className="dashboard future-dashboard">
       <AppSidebar active="Dashboard" />
       <section className="dashboard-main">
         <header className="dash-header">
           <div>
-            <span className="eyebrow">{greeting()}, {firstName}</span>
-            <h1>Your software intelligence.</h1>
+            <h1>{greeting()}, {firstName}.</h1>
           </div>
           <div>
-            <button className="icon-button"><Bell size={18} /></button>
-            <button className="button primary" onClick={() => router.push("/analyze")}><Plus size={16} /> New analysis</button>
+            <button className="button ghost" onClick={() => router.push("/report/demo")}>Explore demo <ArrowUpRight size={16} /></button>
           </div>
         </header>
 
-        <section className="quick-analyze">
-          <div><span className="eyebrow">Quick analyze</span><h2>Start with a public URL.</h2></div>
-          <button onClick={() => router.push("/analyze")} className="url-ghost">
-            <Globe2 size={18} /><span>https://your-product.com</span><ArrowRight size={17} />
-          </button>
+        <section className="investigation-stage">
+          <div className="investigation-command">
+            <h2>Go beneath<br />the <em>interface.</em></h2>
+            <p>Explore a product’s architecture and workflows.</p>
+            <form className="investigation-input" onSubmit={(event) => { event.preventDefault(); investigate(); }}>
+              <Globe2 size={18} />
+              <input aria-label="Product URL to investigate" value={url} onChange={(event) => setUrl(event.target.value)} placeholder="Paste a product URL" />
+              <button type="submit" aria-label="Start investigation"><ArrowUpRight size={22} /></button>
+            </form>
+          </div>
+          <div className="system-sculpture" aria-hidden="true">
+            <svg viewBox="0 0 440 320" className="sculpture-lines">
+              <ellipse cx="220" cy="160" rx="165" ry="62" transform="rotate(-30 220 160)" />
+              <ellipse cx="220" cy="160" rx="165" ry="62" transform="rotate(30 220 160)" />
+              <circle cx="220" cy="160" r="100" />
+              <path d="M40 160H400M220 20V300" className="sculpture-guides" />
+              <circle cx="220" cy="160" r="35" className="sculpture-core" />
+              <circle cx="220" cy="160" r="6" className="sculpture-dot" />
+              <circle cx="98" cy="104" r="4" className="sculpture-dot" />
+              <circle cx="346" cy="214" r="4" className="sculpture-dot" />
+            </svg>
+          </div>
         </section>
 
         <section className="stat-grid">
-          <Stat icon={<FileText size={18} />} value={String(stats?.completed_reports ?? "—")} label="Reports generated" note={`${stats?.total_analyses ?? 0} analyses run`} />
-          <Stat icon={<ShieldCheck size={18} />} value={stats ? `${stats.average_confidence}%` : "—"} label="Avg. confidence" note="Across all reports" />
-          <Stat icon={<Sparkles size={18} />} value={String(stats?.favorites ?? "—")} label="Favorites" note="Saved for later" />
+          <Stat icon={<FileText size={18} />} value={String(stats?.completed_reports ?? "—")} label="Reports generated" />
+          <Stat icon={<ShieldCheck size={18} />} value={stats ? `${stats.average_confidence}%` : "—"} label="Avg. confidence" />
+          <Stat icon={<Sparkles size={18} />} value={String(stats?.favorites ?? "—")} label="Favorites" />
         </section>
 
         <section className="recent-section">
           <div className="subhead">
-            <div><span className="eyebrow">Recent reports</span><h2>Keep exploring.</h2></div>
+            <div><h2>Recent reports</h2></div>
             <button className="text-action" onClick={() => router.push("/reports")}>View all <ArrowRight size={15} /></button>
           </div>
 
@@ -103,13 +121,12 @@ function EmptyState({ onStart }: { onStart: () => void }) {
   );
 }
 
-function Stat({ icon, value, label, note }: { icon: React.ReactNode; value: string; label: string; note: string }) {
+function Stat({ icon, value, label }: { icon: React.ReactNode; value: string; label: string }) {
   return (
     <article className="stat-card">
       <span>{icon}</span>
       <strong>{value}</strong>
       <b>{label}</b>
-      <small>{note}</small>
     </article>
   );
 }

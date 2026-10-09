@@ -9,7 +9,6 @@ import {
   Lightbulb,
   Loader2,
   ShieldCheck,
-  Sparkles,
   TriangleAlert,
   User,
 } from "lucide-react";
@@ -263,11 +262,9 @@ export function AskOrbit({
       <header className="ask-orbit-head">
         <div className="ask-orbit-mark"><Bot size={22} /></div>
         <div>
-          <span className="eyebrow"><Sparkles size={12} /> Evidence-grounded copilot</span>
           <h2>Ask Orbit about {productName}</h2>
-          <p>Interrogate the reconstruction. Every answer stays inside this report and exposes its evidence.</p>
+          <p>Answers cite this report’s evidence and label uncertainty.</p>
         </div>
-        <div className="ask-orbit-contract"><ShieldCheck size={14} /><span><b>Citations required</b><small>Inference always labeled</small></span></div>
       </header>
 
       {messages.length === 0 ? (
@@ -275,7 +272,6 @@ export function AskOrbit({
           <div className="ask-orbit-empty-copy">
             <FileSearch size={24} />
             <h3>Start with an engineering question</h3>
-            <p>Orbit searches components, flows, endpoints, features, technologies, and uncertainty records before it answers.</p>
           </div>
           <div className="ask-orbit-starters">
             {STARTERS.map((starter) => <button key={starter} onClick={() => void ask(starter)}><Lightbulb size={14} /><span>{starter}</span><ArrowUp size={13} /></button>)}

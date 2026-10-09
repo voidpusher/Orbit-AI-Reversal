@@ -26,21 +26,28 @@ export function AppSidebar({ active }: { active: string }) {
 
   return (
     <aside className="app-sidebar">
-      <button className="brand button-reset" onClick={() => router.push("/")}>
-        <OrbitLogo />
-        orbit
-      </button>
+      <div className="sidebar-brand-row">
+        <button className="brand button-reset" onClick={() => router.push("/")} aria-label="Orbit home">
+          <OrbitLogo />
+          <span>orbit</span>
+        </button>
+      </div>
       <nav>
         {links.map(([Icon, name, path]) => (
-          <button key={name} className={active === name ? "active" : ""} onClick={() => router.push(path)}>
+          <button
+            key={name}
+            className={`${active === name ? "active" : ""}${name === "New analysis" ? " nav-primary" : ""}`}
+            onClick={() => router.push(path)}
+            aria-current={active === name ? "page" : undefined}
+          >
             <Icon size={17} />
-            {name}
+            <span>{name}</span>
           </button>
         ))}
       </nav>
       <div className="sidebar-bottom">
-        <button onClick={() => router.push("/settings")}>
-          <Star size={16} /> Upgrade
+        <button className="upgrade-card" onClick={() => router.push("/settings")}>
+          <span><Star size={15} /> Orbit Pro</span>
         </button>
         <button className="sidebar-user button-reset" onClick={() => router.push("/settings")}>
           <span>{initials}</span>

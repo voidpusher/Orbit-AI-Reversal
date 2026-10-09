@@ -122,9 +122,8 @@ function AnalyzeInner() {
       <div className="setup-page">
         <button className="back-link" onClick={() => router.push("/dashboard")}><ArrowLeft size={16} /> Dashboard</button>
         <div className="setup-copy">
-          <span className="eyebrow">New exploration</span>
           <h1>What software should<br />Orbit understand?</h1>
-          <p>Analyze a public URL live, or import a browser session when authentication and bot protection hide the real product surface.</p>
+          <p>Enter a public URL, or import a browser capture for sign-in protected products.</p>
         </div>
 
         <div className="analysis-mode-tabs" role="tablist" aria-label="Evidence source">
@@ -242,7 +241,7 @@ function AnalyzeInner() {
 
         {mode === "live" ? (
           <section className="options-card">
-            <div className="options-heading"><div><span className="eyebrow">Exploration settings</span><h2>Fine-tune the scope</h2></div><Settings2 size={19} /></div>
+            <div className="options-heading"><div><h2>Analysis settings</h2></div><Settings2 size={19} /></div>
             <div className="option-list">
               <Toggle title="Deep crawl" detail="Follow primary navigation and linked product pages." checked={deep} onChange={setDeep} />
               <label className="select-option"><div><strong>Maximum pages</strong><span>Bound the browser agent&rsquo;s exploration budget.</span></div><select value={pages} onChange={(e) => setPages(e.target.value)}><option>5</option><option>10</option><option>20</option><option>50</option></select></label>

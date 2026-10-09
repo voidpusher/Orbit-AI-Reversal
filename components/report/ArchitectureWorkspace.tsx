@@ -35,7 +35,6 @@ import {
   RotateCcw,
   Server,
   ShieldCheck,
-  Sparkles,
   Workflow,
   X,
 } from "lucide-react";
@@ -174,15 +173,15 @@ function flowEdges(arch: Architecture): Edge[] {
       target: connection.to,
       type: "smoothstep",
       label: connection.protocol,
-      markerEnd: { type: MarkerType.ArrowClosed, color: inferred ? "#8292a3" : "#6ee7ff", width: 16, height: 16 },
+      markerEnd: { type: MarkerType.ArrowClosed, color: inferred ? "var(--diagram-inferred)" : "var(--diagram-observed)", width: 16, height: 16 },
       className: `architecture-flow-edge ${connection.classification}`,
       style: {
-        stroke: inferred ? "#8292a3" : "#6ee7ff",
+        stroke: inferred ? "var(--diagram-inferred)" : "var(--diagram-observed)",
         strokeWidth: inferred ? 1.25 : 1.8,
         strokeDasharray: inferred ? "7 6" : undefined,
       },
-      labelStyle: { fill: "#9ba3ad", fontSize: 9, fontFamily: "DM Mono" },
-      labelBgStyle: { fill: "#0b1016", fillOpacity: 0.94 },
+      labelStyle: { fill: "var(--text)", fontSize: 11, fontFamily: "DM Mono" },
+      labelBgStyle: { fill: "var(--diagram-label-surface)", fillOpacity: 0.96 },
       labelBgPadding: [6, 4] as [number, number],
       labelBgBorderRadius: 5,
       data: { connection },
@@ -206,8 +205,10 @@ function downloadFile(filename: string, type: string, content: string | Blob) {
   const anchor = document.createElement("a");
   anchor.href = url;
   anchor.download = filename;
+  document.body.appendChild(anchor);
   anchor.click();
-  URL.revokeObjectURL(url);
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function safeName(value: string) {
@@ -350,7 +351,7 @@ export function ArchitectureWorkspace({ arch, productName }: { arch: Architectur
   }, [includedIds, selectedNodeId]);
 
   useEffect(() => {
-    const frame = requestAnimationFrame(() => instanceRef.current?.fitView({ padding: 0.2, duration: 320, includeHiddenNodes: false }));
+    const frame = requestAnimationFrame(() => instanceRef.current?.fitView({ padding: 0.15, minZoom: 0.75, maxZoom: 1, duration: 250, includeHiddenNodes: false }));
     return () => cancelAnimationFrame(frame);
   }, [classification, journey, minimumConfidence, page, technology]);
 
@@ -421,12 +422,11 @@ export function ArchitectureWorkspace({ arch, productName }: { arch: Architectur
     <section className="architecture-workspace">
       <header className="architecture-workspace-head">
         <div>
-          <span className="eyebrow"><Sparkles size={12} /> Interactive engineering model</span>
           <h3>System topology</h3>
-          <p>Pan, zoom, inspect components, and trace the evidence behind every connection.</p>
+          <p>Select a component to inspect its evidence.</p>
         </div>
         <div className="architecture-export-wrap">
-          <button className="architecture-export-button" onClick={() => setShowExport((value) => !value)} aria-expanded={showExport}>
+          <button className="architecture-export-button" disabled={!exportNodes.length} onClick={() => setShowExport((value) => !value)} aria-expanded={showExport}>
             <Download size={15} /> Export <ChevronDown size={13} />
           </button>
           {showExport && (
@@ -461,26 +461,27 @@ export function ArchitectureWorkspace({ arch, productName }: { arch: Architectur
             onNodeClick={(_, node) => setSelectedNodeId(node.id)}
             onPaneClick={() => setSelectedNodeId(null)}
             fitView
-            fitViewOptions={{ padding: 0.2 }}
+            fitViewOptions={{ padding: 0.15, minZoom: 0.75, maxZoom: 1 }}
             minZoom={0.25}
             maxZoom={1.8}
             nodesConnectable={false}
             proOptions={{ hideAttribution: true }}
           >
             <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="rgba(137,160,180,.25)" />
-            <Controls position="bottom-left" showInteractive={false} />
+            <Controls position="bottom-left" showInteractive={false} fitViewOptions={{ padding: 0.15 }} />
             <MiniMap
               position="bottom-right"
               pannable
               zoomable
               nodeColor={(node) => (node.data as ArchitectureNodeData).accent}
-              maskColor="rgba(4,7,10,.72)"
+              maskColor="rgba(231,237,219,.72)"
             />
             <div className="architecture-legend">
               <span><i className="observed" />Observed</span>
               <span><i className="inferred" />Inferred</span>
               <em>{exportNodes.length} of {nodes.length} components</em>
             </div>
+            {!exportNodes.length && <div className="architecture-empty-state"><p>No components match these filters.</p><button className="button secondary" onClick={resetFilters}>Reset filters</button></div>}
           </ReactFlow>
         </div>
 

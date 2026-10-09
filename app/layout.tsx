@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import "reactflow/dist/style.css";
 import "./globals.css";
+import "./orbit-atelier.css";
+import "./workspace-glass.css";
 import { Providers } from "./providers";
 
 const siteUrl =
@@ -38,14 +40,23 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  colorScheme: "dark",
-  themeColor: "#07111a",
+  colorScheme: "light",
+  themeColor: "#f4f2e9",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
       <body>
+        <svg className="atelier-optical-definitions" aria-hidden="true" focusable="false">
+          <defs>
+            <filter id="orbit-crystal" x="-10%" y="-10%" width="120%" height="120%" colorInterpolationFilters="sRGB">
+              <feTurbulence type="fractalNoise" baseFrequency="0.012 0.028" numOctaves="2" seed="7" result="lens" />
+              <feGaussianBlur in="lens" stdDeviation="2" result="smoothLens" />
+              <feDisplacementMap in="SourceGraphic" in2="smoothLens" scale="3" xChannelSelector="R" yChannelSelector="G" />
+            </filter>
+          </defs>
+        </svg>
         <Providers>{children}</Providers>
       </body>
     </html>

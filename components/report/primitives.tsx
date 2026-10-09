@@ -45,16 +45,15 @@ export function ConfidenceGauge({ score, band }: { score: number; band?: string 
         </svg>
         <div className="confidence-score">
           <b>{normalizedScore}<sup>%</sup></b>
-          <small>Overall confidence</small>
         </div>
       </div>
+      <span className="confidence-label">Overall confidence</span>
       <span className="confidence-band"><i />{evidenceBand}</span>
     </div>
   );
 }
 
 export function SectionHead({
-  eyebrow,
   title,
   summary,
   confidence,
@@ -67,7 +66,6 @@ export function SectionHead({
   return (
     <div className="section-head">
       <div>
-        <span className="eyebrow">{eyebrow}</span>
         <h2>{title}</h2>
         <p>{summary}</p>
       </div>

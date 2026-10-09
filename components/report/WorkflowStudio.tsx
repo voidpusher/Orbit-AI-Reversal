@@ -147,7 +147,6 @@ export function WorkflowStudio({
       <header className="workflow-studio-head">
         <div className="workflow-title-mark"><Workflow size={21} /></div>
         <div>
-          <span className="eyebrow">Executable product intelligence</span>
           <h2>Compile a product journey</h2>
           <p>Convert report evidence into an inspectable workflow contract and automation starter.</p>
         </div>
