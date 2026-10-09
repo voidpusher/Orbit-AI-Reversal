@@ -38,7 +38,7 @@ function CompareInner() {
       <AppSidebar active="Compare" />
       <section className="dashboard-main">
         <header className="dash-header">
-          <div><span className="eyebrow">Compare mode</span><h1>Compare software.</h1></div>
+          <div><h1>Compare software.</h1></div>
           <button className="button primary" onClick={() => router.push("/analyze")}><Plus size={16} /> New analysis</button>
         </header>
 
@@ -80,7 +80,7 @@ function ComparisonView({ data }: { data: Comparison }) {
       <div className="compare-heads">
         <SideCard side={data.a} tone="a" />
         <div className="compare-delta">
-          <span className="eyebrow">Confidence Δ</span>
+          <span className="detail-label">Confidence difference</span>
           <b className={data.confidence_delta >= 0 ? "pos" : "neg"}>
             {data.confidence_delta > 0 ? "+" : ""}{data.confidence_delta}
           </b>
@@ -109,7 +109,7 @@ function ComparisonView({ data }: { data: Comparison }) {
 
       <div className="compare-arch">
         <div className="section-head" style={{ marginBottom: 18 }}>
-          <div><span className="eyebrow">System shape</span><h2>Architecture</h2></div>
+          <div><h2>Architecture</h2></div>
         </div>
         <div className="compare-arch-grid">
           <ArchRow name={data.a.product_name} nodes={data.architecture_a} tone="a" />
@@ -119,7 +119,7 @@ function ComparisonView({ data }: { data: Comparison }) {
 
       {data.shared_insights.length > 0 && (
         <div className="compare-insights">
-          <span className="eyebrow">Shared engineering insights</span>
+          <h3>Shared engineering insights</h3>
           <div className="rel-list" style={{ marginTop: 12 }}>
             {data.shared_insights.map((insight) => (
               <span className="rel-chip" key={insight}>{insight}</span>
@@ -146,7 +146,7 @@ function Picker({
 }) {
   return (
     <label className={`compare-picker ${tone}`}>
-      <span className="eyebrow">{label}</span>
+      <span className="detail-label">{label}</span>
       <select value={value} onChange={(e) => onChange(e.target.value)}>
         <option value="">Select a report…</option>
         {options.map((opt) => (

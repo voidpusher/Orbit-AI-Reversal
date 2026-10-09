@@ -130,8 +130,7 @@ export function WorkflowStudio({
     return (
       <section className="workflow-studio workflow-empty">
         <div className="workflow-empty-mark"><Workflow size={28} /></div>
-        <span className="eyebrow">Orbit Workflow</span>
-        <h2>No defensible workflow can be compiled yet.</h2>
+        <h2>No workflow evidence available</h2>
         <p>
           This report does not contain a supported product journey. Import an authenticated HAR capture
           from a workflow you are authorized to inspect; Orbit will correlate its actions and requests
@@ -147,16 +146,15 @@ export function WorkflowStudio({
       <header className="workflow-studio-head">
         <div className="workflow-title-mark"><Workflow size={21} /></div>
         <div>
-          <h2>Compile a product journey</h2>
-          <p>Convert report evidence into an inspectable workflow contract and automation starter.</p>
+          <h2>Workflow Lab</h2>
+          <p>Compile captured actions and requests into a workflow contract and test script.</p>
         </div>
         <div className="workflow-safety"><ShieldCheck size={15} /><span><b>Evidence locked</b><small>No invented selectors or payloads</small></span></div>
       </header>
 
       <div className="workflow-picker">
         <div>
-          <span className="eyebrow">01 · Select journey</span>
-          <h3>What should Orbit make executable?</h3>
+          <h3>Select a journey</h3>
         </div>
         <div className="workflow-choice-list">
           {workflows.map((flow) => (
@@ -265,7 +263,6 @@ function CompiledWorkspace({
     <div className="workflow-result">
       <div className="workflow-result-head">
         <div>
-          <span className="eyebrow">02 · Compiled contract</span>
           <h3>{contract.name}</h3>
           <p>{productName} · <code>{contract.id}</code></p>
         </div>
@@ -311,15 +308,14 @@ function CompiledWorkspace({
       </div>
 
       <div className="workflow-blockers">
-        <div><AlertTriangle size={16} /><span><b>What Orbit still needs</b><small>These gaps remain explicit so the generated automation cannot quietly make false assumptions.</small></span></div>
+        <div><AlertTriangle size={16} /><span><b>Missing evidence</b></span></div>
         <ul>{contract.unknowns.map((unknown) => <li key={unknown}>{unknown}</li>)}</ul>
       </div>
 
       <div className="workflow-operations">
         <div className="workflow-operations-head">
           <div>
-            <span className="eyebrow">03 · Replay monitor</span>
-            <h3>Save, replay, diagnose</h3>
+            <h3>Replay and monitoring</h3>
             <p>Orbit runs the evidence-backed contract in an isolated browser and stores only redacted outcomes.</p>
           </div>
           <span className="workflow-secret-note"><ShieldCheck size={13} /> Runtime inputs are redacted from run history</span>

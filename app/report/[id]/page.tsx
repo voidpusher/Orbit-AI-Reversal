@@ -108,7 +108,7 @@ function ReportViewerInner({ params }: { params: Promise<{ id: string }> }) {
       <section className="report-main">
         <header className="report-header">
           <div>
-            <span className="eyebrow"><i className="complete-dot" /> Analyzed {new Date(report.published_at).toLocaleDateString()}</span>
+            <span className="report-date">Analyzed {new Date(report.published_at).toLocaleDateString()}</span>
             <h1>{active}</h1>
           </div>
           <div className="report-header-actions">

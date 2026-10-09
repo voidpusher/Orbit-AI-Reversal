@@ -110,7 +110,7 @@ export function ERDiagram({
       </div>
       {relationships.length > 0 && (
         <div className="er-rels">
-          <span className="eyebrow">Relationships</span>
+          <h3>Relationships</h3>
           <div className="rel-list">
             {relationships.map((rel, index) => (
               <span className="rel-chip" key={index}>

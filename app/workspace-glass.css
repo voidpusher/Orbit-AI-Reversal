@@ -158,3 +158,24 @@
 .report-sidebar .export-nav { flex-shrink:0; }
 .architecture-empty-state { position:absolute;inset:40% 10% auto;z-index:6;display:grid;justify-items:center;gap:12px;padding:24px;background:var(--reading-surface);border:1px solid var(--line);border-radius:12px;text-align:center; }
 .architecture-empty-state p { margin:0;color:var(--muted); }
+
+/* Landing copy stays useful; the miniature system model stays readable. */
+.detail-label,.report-date { display:block;color:var(--muted);font:400 12px/1.5 "DM Sans",sans-serif;letter-spacing:0;text-transform:none; }
+.report-date { margin-bottom:8px; }
+:is(.content-group-title,.er-rels>h3,.compare-insights>h3) { margin:0 0 12px;color:var(--text);font:500 14px/1.5 "DM Sans",sans-serif;letter-spacing:0; }
+.compare-picker .detail-label { margin-bottom:8px; }
+.atelier-landing .preview-chrome { color:var(--atelier-ink);font:500 14px/1.4 "DM Sans",sans-serif; }
+.atelier-landing .preview-live { color:var(--atelier-readable);font-size:12px;letter-spacing:0; }
+.atelier-landing .preview-report-heading h3 { color:var(--atelier-ink);margin-top:0;line-height:1.05; }
+.atelier-landing .preview-system-map > svg { stroke:var(--preview-connection);stroke-width:1.5; }
+.atelier-landing .preview-node { color:var(--atelier-readable);background:var(--preview-node-fill);border-color:var(--preview-node-edge);padding:13px 14px;gap:9px; }
+.atelier-landing .preview-node > span { color:var(--atelier-ink);font-size:13px;font-weight:500; }
+.atelier-landing .preview-tab-row { color:var(--atelier-readable);font-size:12px; }
+.atelier-landing :is(.atelier-heading>p,.atelier-capabilities p,.atelier-product-copy>p,.atelier-steps p) { color:var(--atelier-readable);font-size:14px;line-height:1.7; }
+.atelier-landing .atelier-steps h3 { margin-top:0; }
+.atelier-landing .atelier-footer>button { color:var(--atelier-readable);font-size:13px; }
+@media(max-width:640px) {
+  .atelier-landing .preview-node { padding:11px 9px;gap:6px; }
+  .atelier-landing .preview-node > span { font-size:11px; }
+  .atelier-landing .preview-tab-row { gap:12px;padding:15px 14px;font-size:11px; }
+}

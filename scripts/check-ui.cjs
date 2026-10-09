@@ -7,6 +7,14 @@ const ts = require("typescript");
 const React = require("react");
 const { renderToStaticMarkup } = require("react-dom/server");
 const root = path.resolve(__dirname, "..");
+const landingSource = fs.readFileSync(path.join(root, "app/page.tsx"), "utf8");
+for (const phrase of ["A CLEARER PICTURE", "FROM SIGNAL TO SYSTEM", "FOLLOW YOUR CURIOSITY", "An illustrative report preview", "SOFTWARE INTELLIGENCE", "Software intelligence. A new perspective.", "A little curiosity goes a long way", "Clarity you can explore", "capability-number", "Observed surface", "Product experience", "Service boundary"]) {
+  assert(!landingSource.includes(phrase), `Decorative landing microcopy returned: ${phrase}`);
+}
+const landingStyles = fs.readFileSync(path.join(root, "app/workspace-glass.css"), "utf8");
+assert(landingStyles.includes('.atelier-landing .preview-node > span { color:var(--atelier-ink);font-size:13px'));
+assert(landingStyles.includes('stroke:var(--preview-connection);stroke-width:1.5'));
+console.log("PASS: landing decorative microcopy removed and preview readability rules present");
 const resolve = Module._resolveFilename;
 Module._resolveFilename = function (name, parent, ...args) {
   return resolve.call(this, name.startsWith("@/") ? path.join(root, name.slice(2)) : name, parent, ...args);
@@ -48,6 +56,8 @@ console.log("PASS: confidence caption separated and new logo rendered");
 
 let buttonCount = 0;
 const deadButtons = [];
+const decorativeLabels = [];
+const removedClasses = new Set(["eyebrow", "atelier-section-label", "capability-number", "landscape-eyebrow", "dash-kicker", "sidebar-section-label", "product-edition", "sculpture-coordinate", "sculpture-tag", "sculpture-caption", "archive-count"]);
 function audit(folder) {
   for (const file of fs.readdirSync(folder, { withFileTypes: true })) {
     const filename = path.join(folder, file.name);
@@ -55,6 +65,11 @@ function audit(folder) {
     if (!file.name.endsWith(".tsx")) continue;
     const source = ts.createSourceFile(filename, fs.readFileSync(filename, "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
     function visit(node) {
+      if (ts.isJsxAttribute(node) && node.name.getText(source) === "className" && node.initializer && ts.isStringLiteral(node.initializer)) {
+        if (node.initializer.text.split(/\s+/).some((name) => removedClasses.has(name))) {
+          decorativeLabels.push(`${path.relative(root, filename)}:${source.getLineAndCharacterOfPosition(node.getStart()).line + 1}`);
+        }
+      }
       if ((ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) && node.tagName.getText(source) === "button") {
         buttonCount++;
         const attrs = node.attributes.properties.filter(ts.isJsxAttribute);
@@ -75,6 +90,8 @@ function audit(folder) {
 }
 audit(path.join(root, "app"));
 audit(path.join(root, "components"));
+assert.deepEqual(decorativeLabels, [], `Decorative microcopy containers returned: ${decorativeLabels.join(", ")}`);
+console.log("PASS: all product pages and components are free of decorative microcopy containers");
 assert.deepEqual(deadButtons, [], `Enabled buttons without an action: ${deadButtons.join(", ")}`);
 console.log(`PASS: ${buttonCount} native button declarations have an action, submit behavior, or explicit disabled state`);
 

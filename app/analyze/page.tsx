@@ -128,13 +128,13 @@ function AnalyzeInner() {
 
         <div className="analysis-mode-tabs" role="tablist" aria-label="Evidence source">
           <button role="tab" aria-selected={mode === "live"} className={mode === "live" ? "active" : ""} onClick={() => setMode("live")}>
-            <Globe2 size={16} /><span><b>Live URL</b><small>Public product surface</small></span>
+            <Globe2 size={16} /><span><b>Live URL</b></span>
           </button>
           <button role="tab" aria-selected={mode === "har"} className={mode === "har" ? "active" : ""} onClick={() => setMode("har")}>
-            <Network size={16} /><span><b>Browser HAR</b><small>Authenticated product evidence</small></span>
+            <Network size={16} /><span><b>Browser HAR</b></span>
           </button>
           <button role="tab" aria-selected={mode === "workflow"} className={mode === "workflow" ? "active" : ""} onClick={() => setMode("workflow")}>
-            <MousePointerClick size={16} /><span><b>Workflow capture</b><small>Actions + network contract</small></span>
+            <MousePointerClick size={16} /><span><b>Workflow capture</b></span>
           </button>
         </div>
 
@@ -251,12 +251,12 @@ function AnalyzeInner() {
           </section>
         ) : mode === "har" ? (
           <section className="har-instructions">
-            <div><span className="eyebrow">Chrome / Edge</span><h2>Capture the useful part</h2></div>
+            <div><h2>Export a HAR in Chrome or Edge</h2></div>
             <ol><li><b>1</b><span>Open DevTools → Network and enable <strong>Preserve log</strong>.</span></li><li><b>2</b><span>Use the product and visit the features you want Orbit to reconstruct.</span></li><li><b>3</b><span>Export the network log as HAR, then upload it above.</span></li></ol>
           </section>
         ) : (
           <section className="har-instructions workflow-instructions">
-            <div><span className="eyebrow">Chrome / Edge</span><h2>Record one valuable journey</h2></div>
+            <div><h2>Record a workflow in Chrome or Edge</h2></div>
             <ol><li><b>1</b><span>Open DevTools → <strong>Recorder</strong>, start recording, and complete one workflow.</span></li><li><b>2</b><span>Export the recording as <strong>JSON</strong>. Keep Network → Preserve log enabled during the same journey.</span></li><li><b>3</b><span>Export the matching <strong>HAR</strong>. Orbit correlates the two sanitized evidence sets.</span></li></ol>
           </section>
         )}

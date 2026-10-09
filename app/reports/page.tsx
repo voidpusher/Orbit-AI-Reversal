@@ -48,7 +48,7 @@ function ReportsInner() {
       <AppSidebar active="Reports" />
       <section className="dashboard-main">
         <header className="dash-header">
-          <div><span className="eyebrow">Saved reports</span><h1>Reports.</h1></div>
+          <div><h1>Reports.</h1></div>
           <button className="button primary" onClick={() => router.push("/analyze")}><Plus size={16} /> New analysis</button>
         </header>
 

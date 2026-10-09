@@ -58,7 +58,6 @@ export function SectionHead({
   summary,
   confidence,
 }: {
-  eyebrow: string;
   title: string;
   summary: string;
   confidence?: number;

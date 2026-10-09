@@ -71,11 +71,7 @@ function AnalysisProgressInner({ params }: { params: Promise<{ id: string }> }) 
         </button>
         <div className="progress-hero">
           <div className={`scanning-mark ${isTerminal ? "still" : ""}`}><span /><span /><span /></div>
-          <span className="eyebrow">
-            {status === "failed" ? <TriangleAlert size={14} /> : <i className="pulse-dot" />}{" "}
-            {status === "completed" ? "Analysis complete" : status === "failed" ? "Analysis failed" : status === "cancelled" ? "Analysis cancelled" : "Browser agent working"}
-          </span>
-          <h1>{status === "completed" ? `${productLabel} understood.` : `Exploring ${productLabel}.`}</h1>
+          <h1>{status === "completed" ? `Analysis complete: ${productLabel}` : status === "failed" ? `Analysis failed: ${productLabel}` : status === "cancelled" ? `Analysis cancelled: ${productLabel}` : `Analyzing ${productLabel}`}</h1>
           <p>{analysis?.target_url ?? "Preparing exploration…"}</p>
         </div>
 

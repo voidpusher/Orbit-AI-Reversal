@@ -46,7 +46,7 @@ function SettingsInner() {
       <AppSidebar active="Settings" />
       <section className="dashboard-main">
         <header className="dash-header">
-          <div><span className="eyebrow">Account</span><h1>Settings.</h1></div>
+          <div><h1>Settings.</h1></div>
           <button className="button ghost" onClick={logout}><LogOut size={15} /> Sign out</button>
         </header>
 

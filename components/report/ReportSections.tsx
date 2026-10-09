@@ -23,10 +23,10 @@ export function ReportSection({ active, doc }: { active: string; doc: ReportDocu
     case "Infrastructure": return <InfraSection doc={doc} />;
     case "Security": return <SecuritySection doc={doc} />;
     case "Rendering": return <RenderingSectionView doc={doc} />;
-    case "Performance": return <GradedSectionView eyebrow="Delivery & speed" title="Performance" section={doc.performance} />;
-    case "SEO": return <GradedSectionView eyebrow="Discoverability" title="SEO & metadata" section={doc.seo} />;
-    case "Privacy": return <GradedSectionView eyebrow="Data & trackers" title="Privacy" section={doc.privacy} />;
-    case "Domain & email": return <GradedSectionView eyebrow="DNS, email & disclosure" title="Domain & email" section={doc.domain} />;
+    case "Performance": return <GradedSectionView title="Performance" section={doc.performance} />;
+    case "SEO": return <GradedSectionView title="SEO & metadata" section={doc.seo} />;
+    case "Privacy": return <GradedSectionView title="Privacy" section={doc.privacy} />;
+    case "Domain & email": return <GradedSectionView title="Domain & email" section={doc.domain} />;
     default: return <section className="section-panel"><UnableToDetermine reason="This section is not available in this report." /></section>;
   }
 }
@@ -42,7 +42,7 @@ function ArchitectureSection({ doc }: { doc: ReportDocument }) {
   const inferred = arch.nodes.filter((node) => node.classification === "inferred").length;
   return (
     <Panel>
-      <SectionHead eyebrow="System reconstruction" title="Architecture" summary={arch.summary} confidence={arch.confidence} />
+      <SectionHead title="Architecture" summary={arch.summary} confidence={arch.confidence} />
       <div className="architecture-metrics">
         <article><b>{arch.nodes.length}</b><span>components</span></article>
         <article><b>{arch.connections?.length ?? arch.edges.length}</b><span>connections</span></article>
@@ -53,7 +53,7 @@ function ArchitectureSection({ doc }: { doc: ReportDocument }) {
 
       {!!arch.request_flows?.length && (
         <div className="architecture-block">
-          <ArchitectureBlockHead eyebrow="Runtime paths" title="Reconstructed request flows" />
+          <ArchitectureBlockHead title="Reconstructed request flows" />
           <div className="arch-flow-grid">
             {arch.request_flows.map((flow) => (
               <article className="arch-flow-card" key={flow.name}>
@@ -78,7 +78,7 @@ function ArchitectureSection({ doc }: { doc: ReportDocument }) {
 
       {!!arch.connections?.length && (
         <div className="architecture-block">
-          <ArchitectureBlockHead eyebrow="Dependency map" title="Component connections" />
+          <ArchitectureBlockHead title="Component connections" />
           <div className="arch-connection-list">
             {arch.connections.map((connection, index) => (
               <article className="arch-connection" key={`${connection.from}-${connection.to}-${index}`}>
@@ -100,7 +100,7 @@ function ArchitectureSection({ doc }: { doc: ReportDocument }) {
       )}
 
       <div className="architecture-block">
-        <ArchitectureBlockHead eyebrow="Component inventory" title="What each layer is responsible for" />
+        <ArchitectureBlockHead title="What each layer is responsible for" />
         <div className="arch-inventory">
           {arch.nodes.map((node) => (
             <article key={node.id}>
@@ -119,7 +119,7 @@ function ArchitectureSection({ doc }: { doc: ReportDocument }) {
       <div className="architecture-two-col">
         {!!arch.trust_boundaries?.length && (
           <div className="architecture-block compact">
-            <ArchitectureBlockHead eyebrow="Security model" title="Trust boundaries" />
+            <ArchitectureBlockHead title="Trust boundaries" />
             <div className="arch-detail-list">
               {arch.trust_boundaries.map((boundary) => (
                 <article key={boundary.name}>
@@ -133,7 +133,7 @@ function ArchitectureSection({ doc }: { doc: ReportDocument }) {
         )}
         {!!arch.patterns?.length && (
           <div className="architecture-block compact">
-            <ArchitectureBlockHead eyebrow="Runtime behavior" title="Architecture patterns" />
+            <ArchitectureBlockHead title="Architecture patterns" />
             <div className="arch-detail-list">
               {arch.patterns.map((pattern) => (
                 <article key={pattern.title}>
@@ -159,15 +159,15 @@ function ArchitectureSection({ doc }: { doc: ReportDocument }) {
   );
 }
 
-function ArchitectureBlockHead({ eyebrow, title }: { eyebrow: string; title: string }) {
-  return <div className="architecture-block-head"><span>{eyebrow}</span><h3>{title}</h3></div>;
+function ArchitectureBlockHead({ title }: { title: string }) {
+  return <div className="architecture-block-head"><h3>{title}</h3></div>;
 }
 
 function FlowsSection({ doc }: { doc: ReportDocument }) {
   const uf = doc.user_flows;
   return (
     <Panel>
-      <SectionHead eyebrow="Product journeys" title="User flows" summary={uf.summary} confidence={uf.confidence} />
+      <SectionHead title="User flows" summary={uf.summary} confidence={uf.confidence} />
       {uf.flows.length === 0 ? (
         <UnableToDetermine reason={uf.reasoning} />
       ) : (
@@ -190,7 +190,7 @@ function FlowsSection({ doc }: { doc: ReportDocument }) {
 function FeaturesSection({ doc }: { doc: ReportDocument }) {
   return (
     <Panel>
-      <SectionHead eyebrow="Product surface" title="Features" summary={doc.features.summary} confidence={doc.features.confidence} />
+      <SectionHead title="Features" summary={doc.features.summary} confidence={doc.features.confidence} />
       {doc.features.items.length === 0 ? (
         <UnableToDetermine reason={doc.meta.access_limited
           ? "The target denied access before Orbit could inspect rendered product surfaces. Zero here means unavailable, not that the product has no features."
@@ -213,7 +213,7 @@ function EntitiesSection({ doc }: { doc: ReportDocument }) {
   const e = doc.entities;
   return (
     <Panel>
-      <SectionHead eyebrow="Data model" title="Entities" summary={e.summary} confidence={e.confidence} />
+      <SectionHead title="Entities" summary={e.summary} confidence={e.confidence} />
       {e.items.length === 0 ? (
         <UnableToDetermine reason={e.reasoning} />
       ) : (
@@ -230,7 +230,7 @@ function DatabaseSection({ doc }: { doc: ReportDocument }) {
   const db = doc.database;
   return (
     <Panel>
-      <SectionHead eyebrow="Inferred schema" title="Database" summary={db.summary} confidence={db.confidence} />
+      <SectionHead title="Database" summary={db.summary} confidence={db.confidence} />
       {db.items.length === 0 ? (
         <UnableToDetermine reason={db.reasoning} />
       ) : (
@@ -247,7 +247,7 @@ function PermissionsSection({ doc }: { doc: ReportDocument }) {
   const perms = doc.permissions;
   return (
     <Panel>
-      <SectionHead eyebrow="Access model" title="Permissions" summary={perms.summary} confidence={perms.confidence} />
+      <SectionHead title="Permissions" summary={perms.summary} confidence={perms.confidence} />
       {perms.roles.length === 0 ? (
         <UnableToDetermine reason={perms.reasoning} />
       ) : (
@@ -271,9 +271,8 @@ function ApiSection({ doc }: { doc: ReportDocument }) {
   const api = doc.api;
   return (
     <Panel>
-      <SectionHead eyebrow="Interface" title="API" summary={api.summary} confidence={api.confidence} />
-      <div className="api-style">
-        <span className="eyebrow">Detected style</span>
+      <SectionHead title="API" summary={api.summary} confidence={api.confidence} />
+      <div className="api-style" aria-label="API style">
         <b>{api.style}</b>
       </div>
       {api.spec && (
@@ -305,10 +304,10 @@ function TechSection({ doc }: { doc: ReportDocument }) {
   const byCat = groupBy(doc.tech_stack.items, (t) => t.category);
   return (
     <Panel>
-      <SectionHead eyebrow="Observed stack" title="Tech stack" summary={doc.tech_stack.summary} confidence={doc.tech_stack.confidence} />
+      <SectionHead title="Tech stack" summary={doc.tech_stack.summary} confidence={doc.tech_stack.confidence} />
       {Object.entries(byCat).map(([category, items]) => (
         <div className="tech-group" key={category}>
-          <span className="eyebrow">{category}</span>
+          <h3 className="content-group-title">{category}</h3>
           <div className="tech-list">
             {items.map((tech) => (
               <div className="tech-item" key={tech.name}>
@@ -328,7 +327,7 @@ function TechSection({ doc }: { doc: ReportDocument }) {
 function IntegrationsSection({ doc }: { doc: ReportDocument }) {
   return (
     <Panel>
-      <SectionHead eyebrow="Third-party services" title="Integrations" summary={doc.integrations.summary} confidence={doc.integrations.confidence} />
+      <SectionHead title="Integrations" summary={doc.integrations.summary} confidence={doc.integrations.confidence} />
       <div className="tech-list">
         {doc.integrations.items.map((item) => (
           <div className="tech-item" key={item.name}>
@@ -346,7 +345,7 @@ function IntegrationsSection({ doc }: { doc: ReportDocument }) {
 function InsightsSection({ doc }: { doc: ReportDocument }) {
   return (
     <Panel>
-      <SectionHead eyebrow="Engineering insights" title="Engineering insights" summary={doc.insights.summary} confidence={doc.insights.confidence} />
+      <SectionHead title="Engineering insights" summary={doc.insights.summary} confidence={doc.insights.confidence} />
       <div className="insight-grid wide">
         {doc.insights.items.map((insight) => (
           <article className="insight" key={insight.title}>
@@ -367,7 +366,7 @@ function InsightsSection({ doc }: { doc: ReportDocument }) {
 function InfraSection({ doc }: { doc: ReportDocument }) {
   return (
     <Panel>
-      <SectionHead eyebrow="Platform" title="Infrastructure" summary={doc.infrastructure.summary} confidence={doc.infrastructure.confidence} />
+      <SectionHead title="Infrastructure" summary={doc.infrastructure.summary} confidence={doc.infrastructure.confidence} />
       <div className="stack-list">
         {doc.infrastructure.items.map((item) => (
           <div className="stack-row" key={item.title}>
@@ -386,7 +385,7 @@ function SecuritySection({ doc }: { doc: ReportDocument }) {
   if (!sec.findings && sec.items) {
     return (
       <Panel>
-        <SectionHead eyebrow="Posture" title="Security" summary={sec.summary} confidence={sec.confidence} />
+        <SectionHead title="Security" summary={sec.summary} confidence={sec.confidence} />
         <div className="stack-list">
           {sec.items.map((item) => (
             <div className="stack-row" key={item.title}>
@@ -398,20 +397,19 @@ function SecuritySection({ doc }: { doc: ReportDocument }) {
       </Panel>
     );
   }
-  return <GradedSectionView eyebrow="Posture" title="Security" section={sec} />;
+  return <GradedSectionView title="Security" section={sec} />;
 }
 
 function GradedSectionView({
-  eyebrow, title, section,
+  title, section,
 }: {
-  eyebrow: string;
   title: string;
   section?: { summary: string; confidence: number; grade?: string; score?: number; findings: import("@/lib/types").Finding[]; metrics?: import("@/lib/types").SectionMetric[] };
 }) {
   if (!section) {
     return (
       <Panel>
-        <SectionHead eyebrow={eyebrow} title={title} summary="This section isn't available for this report." />
+        <SectionHead title={title} summary="This section isn't available for this report." />
         <p className="empty-note">Re-run the analysis to generate this section.</p>
       </Panel>
     );
@@ -419,7 +417,7 @@ function GradedSectionView({
   return (
     <Panel>
       <div className="graded-head">
-        <SectionHead eyebrow={eyebrow} title={title} summary={section.summary} confidence={section.grade ? undefined : section.confidence} />
+        <SectionHead title={title} summary={section.summary} confidence={section.grade ? undefined : section.confidence} />
         <GradeBadge grade={section.grade} score={section.score} />
       </div>
       <MetricsStrip metrics={section.metrics} />
@@ -433,14 +431,14 @@ function RenderingSectionView({ doc }: { doc: ReportDocument }) {
   if (!section) {
     return (
       <Panel>
-        <SectionHead eyebrow="Delivery" title="Rendering" summary="This section isn't available for this report." />
+        <SectionHead title="Rendering" summary="This section isn't available for this report." />
         <p className="empty-note">Re-run the analysis to generate this section.</p>
       </Panel>
     );
   }
   return (
     <Panel>
-      <SectionHead eyebrow="Delivery strategy" title="Rendering & deployment" summary={section.summary} confidence={section.confidence} />
+      <SectionHead title="Rendering & deployment" summary={section.summary} confidence={section.confidence} />
       <MetricsStrip metrics={section.metrics} />
       <FindingsList findings={section.findings} />
     </Panel>

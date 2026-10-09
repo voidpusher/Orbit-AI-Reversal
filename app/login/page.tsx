@@ -108,7 +108,6 @@ export default function LoginPage() {
         </button>
         <div className="auth-copy">
           <h1>{mode === "signup" ? "Create your account" : "Welcome back"}</h1>
-          <p>{mode === "signup" ? "Start understanding any software in minutes." : "Sign in to explore and understand any software."}</p>
         </div>
 
         <div className="auth-providers">
