@@ -9,6 +9,7 @@ import {
   CircleUserRound,
   Database,
   Download,
+  FileCode2,
   GitBranch,
   LayoutDashboard,
   Lightbulb,
@@ -39,6 +40,7 @@ const NAV_ITEMS = [
   ["Permissions", LockKeyhole],
   ["Database", Database],
   ["API", Braces],
+  ["Client code", FileCode2],
   ["Tech stack", GitBranch],
   ["Insights", Lightbulb],
 ] as const;

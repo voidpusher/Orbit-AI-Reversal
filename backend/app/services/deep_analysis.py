@@ -404,6 +404,112 @@ def analyze_seo(pages: list[dict], probes: dict | None = None) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Client-code intelligence (public JavaScript bundles + source maps)
+# ---------------------------------------------------------------------------
+def _sample(items: list[str], n: int = 5) -> str:
+    return ", ".join(items[:n]) + (f" +{len(items) - n} more" if len(items) > n else "")
+
+
+def analyze_code(probes: dict) -> dict | None:
+    code = probes.get("code") or {}
+    if not code.get("available"):
+        return None
+
+    findings: list[dict] = []
+    endpoints = code.get("endpoints", [])
+    routes = code.get("routes", [])
+    flags = code.get("flags", [])
+    operations = code.get("graphql_operations", [])
+    libraries = code.get("libraries", [])
+    source_map = code.get("source_map")
+    scripts = code.get("scripts_analyzed", 0)
+
+    for secret in code.get("secrets", []):
+        findings.append(_finding(
+            f"Possible {secret['kind']} in shipped JavaScript",
+            "A string matching this credential format is present in a public bundle that every visitor downloads. "
+            "If it is live, rotate it and move the call server-side.",
+            "bad", secret["masked"],
+        ))
+    if code.get("non_production_hosts"):
+        hosts = code["non_production_hosts"]
+        findings.append(_finding(
+            "Non-production hosts referenced",
+            f"The production bundle names {len(hosts)} staging/dev/internal host(s), revealing environments behind the public product.",
+            "warn", _sample(hosts, 4),
+        ))
+    if source_map:
+        detail = (
+            f"A public source map reconstructs {source_map['app_files']} original application file(s)"
+            + (f" in {source_map['language']}" if source_map.get("language") else "")
+            + f" and {source_map['dependency_count']} npm dependencies."
+            + (" It also embeds the full original source text." if source_map.get("sources_content") else "")
+        )
+        findings.append(_finding("Original source structure exposed", detail, "bad" if source_map.get("sources_content") else "warn",
+                                 _sample([a["area"] for a in source_map.get("areas", [])], 4)))
+    if endpoints:
+        concrete = [e for e in endpoints if e["method"] != "ANY"]
+        findings.append(_finding(
+            f"{code.get('endpoint_count', len(endpoints))} API endpoint(s) referenced in client code",
+            "Endpoint paths are string literals in the shipped bundle"
+            + (f"; {len(concrete)} carry an explicit HTTP method." if concrete else ".")
+            + " Being referenced does not prove an endpoint is live or reachable without auth.",
+            "info", _sample([f"{e['method'] if e['method'] != 'ANY' else ''} {e['path']}".strip() for e in endpoints], 4),
+        ))
+    if operations:
+        findings.append(_finding(
+            f"{len(operations)} GraphQL operation(s) named",
+            "Operation names in client code describe what the UI reads and changes.",
+            "info", _sample([o["name"] for o in operations], 5),
+        ))
+    if routes:
+        findings.append(_finding(
+            f"{code.get('route_count', len(routes))} client route(s) discovered",
+            f"Routes come from the {code.get('route_source') or 'bundle'}, including pages the crawler never linked to.",
+            "info", _sample(routes, 6),
+        ))
+    if flags:
+        providers = sorted({f["provider"] for f in flags})
+        findings.append(_finding(
+            f"{code.get('flag_count', len(flags))} feature flag(s) referenced",
+            f"Flag keys passed to {', '.join(providers)} hint at experiments and unreleased features.",
+            "info", _sample([f["key"] for f in flags], 5),
+        ))
+    if code.get("realtime"):
+        findings.append(_finding("Realtime channels", "WebSocket endpoints are named in client code.", "info", _sample(code["realtime"], 3)))
+    if libraries:
+        findings.append(_finding(f"{len(libraries)} libraries identified in bundles", "Identified by strings that survive minification.", "info", _sample(libraries, 8)))
+    for key in code.get("public_keys", []):
+        findings.append(_finding(f"{key['kind']} in bundle", "Public by design (meant to ship to browsers); listed for completeness.", "info", key["masked"]))
+    if not findings:
+        findings.append(_finding("No notable references", f"Orbit read {scripts} first-party bundle(s) and found no endpoints, routes, flags, or keys.", "info", ""))
+
+    return {
+        "summary": f"Orbit read {scripts} first-party JavaScript bundle(s) ({_fmt_bytes(code.get('bytes_analyzed', 0))}) that every visitor downloads, "
+                   "and extracted the references they contain. Nothing was executed.",
+        "confidence": 84 if (endpoints or routes or source_map) else 66,
+        "findings": findings,
+        "metrics": [
+            {"label": "Bundles read", "value": str(scripts)},
+            {"label": "Endpoints", "value": str(code.get("endpoint_count", len(endpoints)))},
+            {"label": "Routes", "value": str(code.get("route_count", len(routes)))},
+            {"label": "Feature flags", "value": str(code.get("flag_count", len(flags)))},
+            {"label": "Source files", "value": str(source_map["app_files"]) if source_map else "—"},
+        ],
+        "endpoints": endpoints,
+        "graphql_operations": operations,
+        "routes": routes,
+        "route_source": code.get("route_source"),
+        "flags": flags,
+        "libraries": libraries,
+        "realtime": code.get("realtime", []),
+        "source_map": source_map,
+        "reasoning": "Every item is a literal string found in public JavaScript, so its presence is observed. "
+                     "What it implies (that an endpoint is live, a flag is on, or a route is reachable) is inferred.",
+    }
+
+
+# ---------------------------------------------------------------------------
 # Privacy & third-party footprint
 # ---------------------------------------------------------------------------
 _TRACKER_HINTS = {

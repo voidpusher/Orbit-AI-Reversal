@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  ArrowLeft, Bot, Boxes, Cloud, Code2, Cpu, Database, Download, FileText, Gauge, GitBranch, Globe2,
+  ArrowLeft, Bot, Boxes, Cloud, Code2, Cpu, Database, Download, FileCode2, FileText, Gauge, GitBranch, Globe2,
   Layers3, Loader2, Lock, Network, Plug, Search, Server, ShieldCheck, Sparkles, Star, TriangleAlert, Users, Waypoints,
   Workflow as WorkflowIcon,
 } from "lucide-react";
@@ -21,7 +21,7 @@ import { downloadText } from "@/lib/download";
 
 const NAV: [React.ComponentType<{ size?: number }>, string][] = [
   [WorkflowIcon, "Workflow Lab"], [Bot, "Ask Orbit"], [Layers3, "Overview"], [Network, "Architecture"], [Waypoints, "User flows"], [Sparkles, "Features"],
-  [Boxes, "Entities"], [Users, "Permissions"], [Database, "Database"], [GitBranch, "API"],
+  [Boxes, "Entities"], [Users, "Permissions"], [Database, "Database"], [GitBranch, "API"], [FileCode2, "Client code"],
   [Globe2, "Tech stack"], [Plug, "Integrations"], [Gauge, "Performance"], [Search, "SEO"],
   [Lock, "Privacy"], [Code2, "Engineering insights"], [Cpu, "Rendering"], [Cloud, "Infrastructure"],
   [Server, "Domain & email"], [ShieldCheck, "Security"],

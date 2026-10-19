@@ -305,7 +305,11 @@ export const DEMO_REPORT: ReportDocument = {
     summary: "Sample GraphQL operations and a websocket transport.", confidence: 93,
     style: "GraphQL + WebSocket",
     endpoints: [
-      { method: "POST", path: "/api/graphql", confidence: 96, note: "Queries and IssueCreate mutation" },
+      {
+        method: "POST", path: "/api/graphql", confidence: 96, note: "Queries and IssueCreate mutation",
+        request_fields: ["operationName:string", "variables.input.title:string", "variables.input.teamId:string"],
+        response_fields: ["data.issueCreate.issue.id:string", "data.issueCreate.issue.identifier:string", "data.issueCreate.issue.state.name:string"],
+      },
       { method: "WS", path: "/realtime", confidence: 91, note: "Workspace events and presence" },
     ],
     evidence: ["Sample POST request with operationName=IssueCreate", "Sample websocket issue.created event"],
@@ -343,5 +347,31 @@ export const DEMO_REPORT: ReportDocument = {
     { title: "Authenticated requests", detail: "The sample API request carries authorization.", status: "info", evidence: "Sample bearer authorization header; credentials omitted" },
     { title: "Server authorization unknown", detail: "Client evidence cannot confirm record-level permissions.", status: "warn" },
   ] },
+  code_intel: {
+    summary: "Sample client-code reading: references extracted from public JavaScript bundles. Nothing was executed.",
+    confidence: 84,
+    metrics: [
+      { label: "Bundles read", value: "6" }, { label: "Endpoints", value: "14" }, { label: "Routes", value: "23" },
+      { label: "Feature flags", value: "5" }, { label: "Source files", value: "—" },
+    ],
+    findings: [
+      { title: "14 API endpoint(s) referenced in client code", detail: "Sample endpoint paths found as string literals; being referenced does not prove an endpoint is live.", status: "info", evidence: "POST /api/graphql, GET /api/export/:param" },
+      { title: "23 client route(s) discovered", detail: "Sample routes from the Next.js build manifest, including pages the crawler never linked to.", status: "info", evidence: "/:workspace/settings/billing, /:workspace/cycles" },
+      { title: "5 feature flag(s) referenced", detail: "Sample flag keys passed to a flag SDK hint at experiments and unreleased features.", status: "info", evidence: "ai-triage, cycles-v2" },
+    ],
+    endpoints: [
+      { method: "POST", path: "/api/graphql", host: null },
+      { method: "GET", path: "/api/export/:param", host: null },
+      { method: "ANY", path: "/v1/uploads", host: "api.example.app" },
+    ],
+    graphql_operations: [{ name: "IssueCreate", kind: "mutation" }, { name: "ListIssues", kind: "query" }],
+    routes: ["/:workspace/inbox", "/:workspace/cycles", "/:workspace/settings/billing", "/:workspace/team/:key/active"],
+    route_source: "Next.js build manifest",
+    flags: [{ key: "ai-triage", provider: "Statsig" }, { key: "cycles-v2", provider: "Statsig" }],
+    libraries: ["React", "Apollo Client", "ProseMirror", "Sentry"],
+    realtime: ["wss://sync.example.app/realtime"],
+    source_map: null,
+    reasoning: "Every item is a literal string found in public JavaScript, so its presence is observed. What it implies is inferred.",
+  },
 };
 

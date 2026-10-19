@@ -23,6 +23,8 @@ export interface SanitizedHarEntry {
   content_type?: string;
   cache_control?: string;
   server?: string;
+  request_fields?: string[];
+  response_fields?: string[];
 }
 
 export interface HarImportPayload {
@@ -140,6 +142,31 @@ export interface Entity {
   name: string;
   fields: string[];
   confidence: number;
+  classification?: "observed" | "inferred";
+  source?: string;
+}
+
+export interface CodeIntelSection extends Confidenced {
+  findings: Finding[];
+  metrics?: SectionMetric[];
+  endpoints: { method: string; path: string; host: string | null }[];
+  graphql_operations: { name: string; kind: string }[];
+  routes: string[];
+  route_source: string | null;
+  flags: { key: string; provider: string }[];
+  libraries: string[];
+  realtime: string[];
+  source_map: {
+    maps: number;
+    files: number;
+    app_files: number;
+    dependencies: string[];
+    dependency_count: number;
+    areas: { area: string; files: number }[];
+    language: string | null;
+    sources_content: boolean;
+  } | null;
+  reasoning?: string;
 }
 
 export interface Insight {
@@ -232,7 +259,14 @@ export interface ReportDocument {
   database: Confidenced & { items: Entity[]; relationships: { from: string; to: string; kind: string }[]; reasoning?: string };
   api: Confidenced & {
     style: string;
-    endpoints: { method: string; path: string; confidence: number; note: string }[];
+    endpoints: {
+      method: string;
+      path: string;
+      confidence: number;
+      note: string;
+      request_fields?: string[];
+      response_fields?: string[];
+    }[];
     evidence: string[];
     spec?: { title: string | null; version: string | null; path_count: number } | null;
     findings?: Finding[];
@@ -247,6 +281,7 @@ export interface ReportDocument {
   seo?: GradedSection;
   privacy?: GradedSection;
   domain?: GradedSection;
+  code_intel?: CodeIntelSection;
 }
 
 export interface ReportListItem {

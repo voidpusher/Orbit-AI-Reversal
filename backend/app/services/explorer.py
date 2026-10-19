@@ -292,15 +292,20 @@ class AnalysisExplorer:
                     .order_by(EvidenceItem.created_at)
                     .limit(1)
                 )
-            scripts = (first.metadata_json.get("signals") or {}).get("scripts_external", []) if first else []
-            probes = await run_site_probes(analysis.target_url, scripts)
+            signals = (first.metadata_json.get("signals") or {}) if first else {}
+            scripts = signals.get("scripts_external", [])
+            build_id = (signals.get("next_data") or {}).get("build_id")
+            probes = await run_site_probes(analysis.target_url, scripts, str(build_id) if build_id else None)
             await self._persist_evidence(analysis.id, "site_probe", analysis.target_url, probes)
+            code = probes.get("code", {})
             await self._events.append(
-                analysis.id, "probes.recorded", "Ran TLS, bundle, and crawlability probes",
+                analysis.id, "probes.recorded", "Ran TLS, bundle, client-code, and crawlability probes",
                 {
                     "tls": bool(probes.get("tls", {}).get("available")),
                     "js_bytes": probes.get("bundles", {}).get("total_bytes"),
                     "sourcemaps_exposed": probes.get("bundles", {}).get("sourcemaps_exposed"),
+                    "code_endpoints": code.get("endpoint_count"),
+                    "code_routes": code.get("route_count"),
                 },
             )
         except Exception:

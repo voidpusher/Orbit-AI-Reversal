@@ -10,6 +10,10 @@ from app.schemas import HarEntryRequest
 _UUID = re.compile(r"^[0-9a-f]{8}-[0-9a-f-]{27,}$", re.I)
 _OPAQUE = re.compile(r"^[A-Za-z0-9_-]{18,}$")
 _NUMBER = re.compile(r"^\d{3,}$")
+_FIELD_PATH = re.compile(r"^(\S{1,100}):(string|number|boolean|null|object|array)$")
+_FIELD_KEY = re.compile(r"^[A-Za-z_$][A-Za-z0-9_$-]{0,39}$")
+_MAX_FIELDS = 60
+_MAX_FIELD_DEPTH = 6
 _SAFE_RESOURCE_TYPES = {
     "document", "stylesheet", "image", "media", "font", "script", "texttrack",
     "xhr", "fetch", "eventsource", "websocket", "manifest", "other",
@@ -28,7 +32,36 @@ def normalize_har_path(path: str) -> str:
     return normalized if normalized.startswith("/") else f"/{normalized}"
 
 
-def sanitize_har_entry(entry: HarEntryRequest) -> tuple[str, dict[str, str | int]]:
+def _sanitize_field_key(key: str) -> str:
+    # Keys that look like identifiers or emails are data, not schema: mask them.
+    if _FIELD_KEY.fullmatch(key) and not (any(c.isdigit() for c in key) and len(key) >= 12):
+        return key
+    return ":key"
+
+
+def sanitize_field_paths(items: list[str]) -> list[str]:
+    """Re-validate browser-computed shapes: keep `path:type` only, mask identifier-like keys."""
+    cleaned: list[str] = []
+    for item in items[:_MAX_FIELDS]:
+        match = _FIELD_PATH.fullmatch(item.strip())
+        if not match:
+            continue
+        path, kind = match.groups()
+        segments = []
+        for raw in path.split(".")[:_MAX_FIELD_DEPTH]:
+            arrays = ""
+            while raw.endswith("[]"):
+                raw, arrays = raw[:-2], arrays + "[]"
+            segments.append((_sanitize_field_key(raw) if raw else "") + arrays)
+        if not all(segments[1:]) or not "".join(segments):
+            continue
+        value = f"{'.'.join(segments)}:{kind}"
+        if value not in cleaned:
+            cleaned.append(value)
+    return cleaned
+
+
+def sanitize_har_entry(entry: HarEntryRequest) -> tuple[str, dict[str, str | int | list[str]]]:
     parsed = urlsplit(str(entry.url))
     host = (parsed.hostname or "").lower().rstrip(".")
     port = f":{parsed.port}" if parsed.port else ""
@@ -37,7 +70,7 @@ def sanitize_har_entry(entry: HarEntryRequest) -> tuple[str, dict[str, str | int
     resource_type = (entry.resource_type or "other").lower()
     if resource_type not in _SAFE_RESOURCE_TYPES:
         resource_type = "other"
-    metadata: dict[str, str | int] = {
+    metadata: dict[str, str | int | list[str]] = {
         "host": host,
         "path": path,
         "method": entry.method.upper() if entry.method.upper() in {"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"} else "OTHER",
@@ -51,6 +84,9 @@ def sanitize_har_entry(entry: HarEntryRequest) -> tuple[str, dict[str, str | int
     ):
         if value:
             metadata[key] = value.strip()[:160]
+    for key, fields in (("request_fields", entry.request_fields), ("response_fields", entry.response_fields)):
+        if cleaned := sanitize_field_paths(fields):
+            metadata[key] = cleaned
     return source_url, metadata
 
 

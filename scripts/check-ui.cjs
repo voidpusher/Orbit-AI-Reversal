@@ -33,13 +33,14 @@ const { ReportSection } = require("../components/report/ReportSections.tsx");
 const { DEMO_REPORT } = require("../lib/demo-report.ts");
 const { ConfidenceGauge } = require("../components/report/primitives.tsx");
 const { OrbitLogo } = require("../components/OrbitLogo.tsx");
-const sections = ["Architecture", "User flows", "Features", "Entities", "Permissions", "Database", "API", "Tech stack", "Insights"];
+const sections = ["Architecture", "User flows", "Features", "Entities", "Permissions", "Database", "API", "Client code", "Tech stack", "Insights"];
 for (const active of sections) {
   const markup = renderToStaticMarkup(React.createElement(ReportSection, { active, doc: DEMO_REPORT }));
   assert(markup.includes("section-panel"), `${active} needs a section panel`);
   assert(!markup.includes("This section is not available"), `${active} fell through to the fallback`);
   assert(markup.includes(`<h2>${active === "Insights" ? "Engineering insights" : active}</h2>`), `${active} has no matching heading`);
-  if (active === "API") assert(markup.includes("/api/graphql"));
+  if (active === "API") assert(markup.includes("/api/graphql") && markup.includes("endpoint-shape"));
+  if (active === "Client code") assert(markup.includes("ai-triage") && markup.includes("IssueCreate") && markup.includes("REF"));
   if (active === "Entities" || active === "Database") assert(markup.includes("Workspace") && markup.includes("assignee_id"));
   console.log(`PASS: ${active} renders distinct content`);
 }
@@ -147,3 +148,12 @@ try {
   React.useState = originalUseState;
   Module._load = load;
 }
+
+const { jsonShape } = require("../lib/har.ts");
+const body = { data: [{ id: "u_1", email: "jane@acme.com", tags: ["vip"], owner: { name: "Jane" } }], usersById: { "8f3k29dk3j20x": { score: 7 } } };
+const shape = jsonShape(JSON.stringify(body), "application/json");
+assert.deepEqual(shape, ["data[].id:string", "data[].email:string", "data[].tags[]:string", "data[].owner.name:string", "usersById.:key.score:number"]);
+assert(!/jane|vip|u_1|8f3k/i.test(shape.join(" ")), "HAR shapes must never carry values or identifier keys");
+assert.deepEqual(jsonShape(Buffer.from('{"plan":"pro"}').toString("base64"), "application/json", "base64"), ["plan:string"]);
+assert.deepEqual(jsonShape("<html></html>", "text/html"), []);
+console.log("PASS: HAR body shapes keep field names and types, never values");

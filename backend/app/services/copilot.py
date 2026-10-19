@@ -127,6 +127,25 @@ def build_evidence_index(document: dict[str, Any]) -> list[EvidenceChunk]:
             evidence=[note, path], classification="observed", confidence=_confidence(endpoint.get("confidence")),
         ))
 
+    code = document.get("code_intel") or {}
+    code_confidence = _confidence(code.get("confidence"))
+    for index, finding in enumerate(code.get("findings") or []):
+        chunks.append(EvidenceChunk(
+            key=f"code_intel.{index}", section="Client code", title=str(finding.get("title") or "Client code reference"),
+            detail=str(finding.get("detail") or ""), evidence=_strings([finding.get("evidence")]),
+            classification="observed", confidence=code_confidence,
+        ))
+    for label, values in (
+        ("Feature flags in client code", [f"{f.get('key')} ({f.get('provider')})" for f in code.get("flags") or []]),
+        ("Client routes in shipped JavaScript", _strings(code.get("routes"))),
+        ("GraphQL operations in client code", [f"{o.get('kind')} {o.get('name')}" for o in code.get("graphql_operations") or []]),
+    ):
+        if values:
+            chunks.append(EvidenceChunk(
+                key=f"code_intel.{label}", section="Client code", title=label, detail="; ".join(values),
+                evidence=values[:8], classification="observed", confidence=code_confidence,
+            ))
+
     for section_name, key in (("User flows", "user_flows"), ("Permissions", "permissions")):
         section = document.get(key) or {}
         items = section.get("flows") if key == "user_flows" else section.get("roles")

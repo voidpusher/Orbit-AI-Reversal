@@ -21,6 +21,7 @@ from app.models import Analysis, EvidenceItem, Report, ReportClaim
 from app.services.ai import ModelAdapter, Synthesis
 from app.services.architecture import infer_architecture
 from app.services.deep_analysis import (
+    analyze_code,
     analyze_domain,
     analyze_performance,
     analyze_privacy,
@@ -50,6 +51,8 @@ class AnalysisInputs:
     pages: list[PageInfo] = field(default_factory=list)
     link_paths: list[str] = field(default_factory=list)
     api_paths: list[str] = field(default_factory=list)
+    # First-party API calls with observed method and (for HAR imports) value-free body shapes.
+    api_calls: list[dict] = field(default_factory=list)
     network_signals: list[dict] = field(default_factory=list)
     signals: Signals = field(default_factory=Signals)
     page_signals: list[dict] = field(default_factory=list)
@@ -118,11 +121,28 @@ def extract_inputs(analysis_url: str, evidence: list[EvidenceItem]) -> AnalysisI
             if first_party and any(seg in path.lower() for seg in ("/api", "/graphql", "/v1", "/rest", "/rpc")):
                 if path not in inputs.api_paths:
                     inputs.api_paths.append(path)
+                _record_api_call(inputs, meta, path)
         elif item.kind == "site_probe":
             inputs.probes = item.metadata_json or {}
         elif item.kind == "workflow_capture":
             inputs.workflow_captures.append(dict(meta))
     return inputs
+
+
+def _record_api_call(inputs: AnalysisInputs, meta: dict, path: str) -> None:
+    method = str(meta.get("method") or "GET").upper()
+    request_fields = [str(f) for f in meta.get("request_fields") or []]
+    response_fields = [str(f) for f in meta.get("response_fields") or []]
+    for call in inputs.api_calls:
+        if call["method"] == method and call["path"] == path:
+            # Keep the richest observation of a repeated call.
+            call["request_fields"] = call["request_fields"] or request_fields
+            call["response_fields"] = call["response_fields"] or response_fields
+            return
+    inputs.api_calls.append({
+        "method": method, "path": path, "status": int(meta.get("status") or 0),
+        "request_fields": request_fields, "response_fields": response_fields,
+    })
 
 
 # ---------------------------------------------------------------------------
@@ -192,6 +212,9 @@ def _feature_sources(inputs: AnalysisInputs) -> list[tuple[str, str]]:
             path = str(signal.get("path") or "")
             if path:
                 sources.append((path.lower(), f"observed first-party request {path}"))
+    code = (inputs.probes or {}).get("code") or {}
+    for route in code.get("routes", [])[:80]:
+        sources.append((str(route).lower(), f"client route {route} in shipped JavaScript"))
     return sources
 
 
@@ -417,11 +440,98 @@ _ACCOUNT_FEATURES = {
 }
 
 
+_NON_RESOURCE_SEGMENTS = {
+    "", "api", "graphql", "gql", "rest", "rpc", "trpc", "internal", "public", "_api", "ajax", "service", "services",
+    "search", "batch", "health", "status", "ping", "events", "track", "collect", "log", "logs", "metrics",
+    "telemetry", "analytics", "data", "nodes", "edges", "node", "items", "results", "records", "list", "query",
+}
+_META_GROUPS = {"meta", "pagination", "paging", "links", "errors", "error", "cursor", "pageinfo", "extensions"}
+
+
+def _entity_name(segment: str) -> str | None:
+    segment = segment.strip("[]").lower()
+    if segment in _NON_RESOURCE_SEGMENTS or segment.startswith(":") or re.fullmatch(r"v\d{1,2}", segment):
+        return None
+    if segment == "me":
+        segment = "user"
+    if segment.endswith("ies") and len(segment) > 4:
+        segment = segment[:-3] + "y"
+    elif segment.endswith("s") and not segment.endswith("ss") and len(segment) > 3:
+        segment = segment[:-1]
+    words = [w for w in re.split(r"[-_]", segment) if w]
+    return "".join(w.capitalize() for w in words) or None
+
+
+def _observed_entity(call: dict) -> dict | None:
+    """Turn one response shape into an entity: the largest group of scalar fields, never values."""
+    groups: dict[str, list[str]] = {}
+    for item in call.get("response_fields") or []:
+        path, _, kind = item.rpartition(":")
+        if kind in {"object", "array"} or not path:
+            continue
+        parent, _, leaf = path.rpartition(".")
+        leaf = leaf.replace("[]", "")
+        if not leaf or leaf == ":key" or (parent and parent.split(".")[0].replace("[]", "").lower() in _META_GROUPS):
+            continue
+        groups.setdefault(parent, []).append(leaf)
+    if not groups:
+        return None
+    parent, fields = max(groups.items(), key=lambda kv: (len(kv[1]), -kv[0].count(".")))
+    if len(fields) < 2:
+        return None
+    candidates = [s for s in call["path"].split("/")] + [s for s in parent.split(".")]
+    name = next((n for n in (_entity_name(s) for s in reversed(candidates)) if n), None)
+    if name is None:
+        return None
+    return {
+        "name": name,
+        "fields": list(dict.fromkeys(fields))[:14],
+        "confidence": 92,
+        "classification": "observed",
+        "source": f"{call['method']} {call['path']}",
+    }
+
+
+def _observed_entities(api_calls: list[dict]) -> tuple[list[dict], list[dict]]:
+    entities: dict[str, dict] = {}
+    for call in api_calls:
+        entity = _observed_entity(call)
+        if entity and (entity["name"] not in entities or len(entity["fields"]) > len(entities[entity["name"]]["fields"])):
+            entities[entity["name"]] = entity
+    relationships = []
+    for entity in entities.values():
+        for other in entities:
+            if other == entity["name"]:
+                continue
+            snake = re.sub(r"(?<!^)(?=[A-Z])", "_", other).lower()
+            if f"{snake}_id" in entity["fields"] or f"{other[0].lower()}{other[1:]}Id" in entity["fields"]:
+                relationships.append({"from": other, "to": entity["name"], "kind": "1:N"})
+    return list(entities.values()), relationships
+
+
 def infer_entities(inputs: AnalysisInputs, features: list[dict]) -> dict:
     feature_names = {f["name"] for f in features}
-
-    # Forensic discipline: do not invent a data model. Without any account-bearing
-    # surface, the public evidence is insufficient to infer entities.
+    observed, observed_relationships = _observed_entities(inputs.api_calls)
+    if observed:
+        conventional = _conventional_entities(feature_names) if _ACCOUNT_FEATURES & feature_names else None
+        items = {e["name"]: e for e in (conventional["items"] if conventional else [])}
+        for entity in observed:
+            items[entity["name"]] = entity  # an observed shape always beats a conventional guess
+        relationships = observed_relationships + [
+            r for r in (conventional["relationships"] if conventional else [])
+            if r["from"] in items and r["to"] in items and r not in observed_relationships
+        ]
+        values = list(items.values())
+        return {
+            "summary": f"{len(observed)} entit{'y' if len(observed) == 1 else 'ies'} observed in captured API responses"
+                       + (", alongside conventional entities implied by the product's features." if conventional else "."),
+            "confidence": round(sum(e["confidence"] for e in values) / len(values)),
+            "items": values,
+            "relationships": relationships,
+            "reasoning": "Observed entities come from the JSON shapes of captured API responses: field names and types only, "
+                         "values were discarded in the browser before upload. "
+                         + ("Remaining entities are conventional for the observed features, not observed." if conventional else ""),
+        }
     if not (_ACCOUNT_FEATURES & feature_names):
         return {
             "summary": "Unable to determine a data model from the public surface.",
@@ -432,7 +542,10 @@ def infer_entities(inputs: AnalysisInputs, features: list[dict]) -> dict:
                          "so there is no observable basis to infer persisted entities. Entities require "
                          "account or application behavior that a public marketing surface does not expose.",
         }
+    return _conventional_entities(feature_names)
 
+
+def _conventional_entities(feature_names: set[str]) -> dict:
     has_auth = "Authentication" in feature_names
     entities: list[dict] = [
         {"name": "User", "fields": ["id", "email", "name", "avatar_url", "created_at"], "confidence": 88 if has_auth else 66},
@@ -500,9 +613,39 @@ def infer_api(inputs: AnalysisInputs, detections: list[Detection], probes: dict 
             "evidence": openapi.get("url", ""),
         })
 
-    for path in inputs.api_paths[:12]:
-        if not any(e["path"] == path for e in endpoints):
-            endpoints.append({"method": "GET", "path": path, "confidence": 72, "note": "Observed in network traffic"})
+    for call in inputs.api_calls[:20]:
+        if any(e["path"] == call["path"] and e["method"] == call["method"] for e in endpoints):
+            continue
+        shaped = bool(call["request_fields"] or call["response_fields"])
+        endpoint = {
+            "method": call["method"], "path": call["path"], "confidence": 86 if shaped else 72,
+            "note": "Observed in network traffic" + (" with body shape" if shaped else ""),
+        }
+        if call["request_fields"]:
+            endpoint["request_fields"] = call["request_fields"]
+        if call["response_fields"]:
+            endpoint["response_fields"] = call["response_fields"]
+        endpoints.append(endpoint)
+
+    code = probes.get("code") or {}
+    code_endpoints = code.get("endpoints") or []
+    for ref in code_endpoints[:15]:
+        path = ref["path"] if not ref.get("host") or ref["host"] == inputs.host else f"{ref['host']}{ref['path']}"
+        if any(e["path"] == path for e in endpoints):
+            continue
+        endpoints.append({"method": ref["method"], "path": path, "confidence": 64, "note": "Referenced in shipped JavaScript"})
+    operations = code.get("graphql_operations") or []
+    if operations:
+        is_graphql = True
+        style = "GraphQL" if not openapi else style
+        findings.append({
+            "title": f"{len(operations)} GraphQL operation(s) in client code",
+            "detail": "Named queries and mutations in the shipped bundle describe what the UI reads and changes.",
+            "status": "info",
+            "evidence": ", ".join(o["name"] for o in operations[:6]),
+        })
+    if code_endpoints:
+        confidence = max(confidence, 74)
 
     if graphql:
         if graphql.get("introspection_enabled"):
@@ -528,7 +671,10 @@ def infer_api(inputs: AnalysisInputs, detections: list[Detection], probes: dict 
         "spec": spec,
         "endpoints": endpoints,
         "findings": findings,
-        "evidence": ([openapi["url"]] if openapi else []) + [f"observed path {p}" for p in inputs.api_paths[:4]] or ["API style inferred from client signals"],
+        "evidence": ([openapi["url"]] if openapi else [])
+                    + [f"observed path {p}" for p in inputs.api_paths[:4]]
+                    + ([f"{code.get('endpoint_count', len(code_endpoints))} endpoint reference(s) in shipped JavaScript"] if code_endpoints else [])
+                    or ["API style inferred from client signals"],
     }
 
 
@@ -684,6 +830,7 @@ def build_document(inputs: AnalysisInputs, synthesis: Synthesis, evidence_count:
     else:
         security = infer_security(inputs, detections)
         performance = rendering = seo = privacy = domain = None
+    code_intel = analyze_code(probes)
 
     tech_items = [
         {"name": d.name, "category": d.category, "confidence": d.confidence, "evidence": d.evidence}
@@ -700,7 +847,7 @@ def build_document(inputs: AnalysisInputs, synthesis: Synthesis, evidence_count:
         section_confidences.append(entities["confidence"])
     if flows["flows"]:
         section_confidences.append(flows["confidence"])
-    for extra in (performance, rendering, seo, privacy, domain):
+    for extra in (performance, rendering, seo, privacy, domain, code_intel):
         if extra:
             section_confidences.append(extra["confidence"])
     if tech_items:
@@ -772,6 +919,8 @@ def build_document(inputs: AnalysisInputs, synthesis: Synthesis, evidence_count:
         document["privacy"] = privacy
     if domain:
         document["domain"] = domain
+    if code_intel:
+        document["code_intel"] = code_intel
     if region:
         document["meta"]["region"] = region
     document["meta"]["deep_findings"] = deep_metric_count
@@ -785,7 +934,10 @@ def build_document(inputs: AnalysisInputs, synthesis: Synthesis, evidence_count:
     for i in insights:
         claims.append({"section": "insights", "claim": i["title"], "confidence": i["confidence"] / 100, "classification": i["classification"], "evidence": [i["detail"]]})
     # Deep, header-grounded findings are the most defensible claims (classification observed).
-    for section_key, section in (("security", security), ("performance", performance), ("seo", seo), ("privacy", privacy), ("domain", domain)):
+    for section_key, section in (
+        ("security", security), ("performance", performance), ("seo", seo), ("privacy", privacy), ("domain", domain),
+        ("code_intel", code_intel),
+    ):
         for finding in (section or {}).get("findings", []):
             claims.append({
                 "section": section_key,

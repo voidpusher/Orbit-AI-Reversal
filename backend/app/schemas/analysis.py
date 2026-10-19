@@ -1,7 +1,9 @@
 from datetime import datetime
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, Field, HttpUrl
+
+FieldPath = Annotated[str, Field(max_length=120)]
 
 
 class AnalysisOptions(BaseModel):
@@ -25,6 +27,9 @@ class HarEntryRequest(BaseModel):
     content_type: str | None = Field(default=None, max_length=160)
     cache_control: str | None = Field(default=None, max_length=160)
     server: str | None = Field(default=None, max_length=100)
+    # Value-free JSON shapes ("items[].title:string"), computed in the browser before upload.
+    request_fields: list[FieldPath] = Field(default_factory=list, max_length=60)
+    response_fields: list[FieldPath] = Field(default_factory=list, max_length=60)
 
 
 class ImportHarRequest(BaseModel):

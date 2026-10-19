@@ -21,6 +21,8 @@ from urllib.parse import urljoin, urlsplit
 
 import httpx
 
+from app.services.bundle_intel import probe_code_intel
+
 # AI / LLM crawlers worth calling out when a site blocks (or allows) them.
 _AI_BOTS = {
     "gptbot", "chatgpt-user", "oai-searchbot", "ccbot", "google-extended", "anthropic-ai",
@@ -437,13 +439,13 @@ async def probe_wellknown(client: httpx.AsyncClient, base: str) -> dict:
 # ---------------------------------------------------------------------------
 # Orchestration
 # ---------------------------------------------------------------------------
-async def run_site_probes(target_url: str, script_urls: list[str]) -> dict:
+async def run_site_probes(target_url: str, script_urls: list[str], build_id: str | None = None) -> dict:
     host = (urlsplit(target_url).hostname or "").lower()
     base = f"{urlsplit(target_url).scheme}://{host}"
     async with httpx.AsyncClient(
         timeout=15, headers={"User-Agent": "OrbitBot/0.1 (+https://orbit.dev; software-intelligence)"}
     ) as client:
-        tls, bundles, robots, dns, redirect, security_txt, api, wellknown = await asyncio.gather(
+        tls, bundles, robots, dns, redirect, security_txt, api, wellknown, code = await asyncio.gather(
             probe_tls(host),
             probe_bundles(client, script_urls),
             probe_robots(client, base),
@@ -452,10 +454,18 @@ async def run_site_probes(target_url: str, script_urls: list[str]) -> dict:
             probe_security_txt(client, base),
             probe_api(client, base),
             probe_wellknown(client, base),
+            _safe_code_intel(client, script_urls, target_url, build_id),
         )
         sitemap = await probe_sitemap(client, base, robots.get("sitemaps", []))
     return {
         "tls": tls, "bundles": bundles, "robots": robots, "sitemap": sitemap,
         "dns": dns, "redirect": redirect, "security_txt": security_txt,
-        "api": api, "wellknown": wellknown,
+        "api": api, "wellknown": wellknown, "code": code,
     }
+
+
+async def _safe_code_intel(client: httpx.AsyncClient, script_urls: list[str], target_url: str, build_id: str | None) -> dict:
+    try:
+        return await probe_code_intel(client, script_urls, target_url, build_id)
+    except Exception as error:  # one failed probe must not sink the others
+        return {"available": False, "reason": f"Bundle analysis failed ({type(error).__name__})."}

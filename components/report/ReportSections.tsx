@@ -16,6 +16,7 @@ export function ReportSection({ active, doc }: { active: string; doc: ReportDocu
     case "Permissions": return <PermissionsSection doc={doc} />;
     case "Database": return <DatabaseSection doc={doc} />;
     case "API": return <ApiSection doc={doc} />;
+    case "Client code": return <CodeSection doc={doc} />;
     case "Tech stack": return <TechSection doc={doc} />;
     case "Integrations": return <IntegrationsSection doc={doc} />;
     case "Insights":
@@ -287,16 +288,98 @@ function ApiSection({ doc }: { doc: ReportDocument }) {
       {api.findings && api.findings.length > 0 && <FindingsList findings={api.findings} />}
       <div className="endpoint-list">
         {api.endpoints.map((ep, index) => (
-          <div className="endpoint-row" key={index}>
-            <span className={`method ${ep.method.toLowerCase()}`}>{ep.method}</span>
-            <code>{ep.path}</code>
-            <small>{ep.note}</small>
-            <em>{ep.confidence}%</em>
+          <div key={index}>
+            <div className="endpoint-row">
+              <span className={`method ${ep.method.toLowerCase()}`}>{ep.method}</span>
+              <code>{ep.path}</code>
+              <small>{ep.note}</small>
+              <em>{ep.confidence}%</em>
+            </div>
+            <EndpointShape label="Sends" fields={ep.request_fields} />
+            <EndpointShape label="Returns" fields={ep.response_fields} />
           </div>
         ))}
       </div>
       <EvidenceList items={api.evidence} />
     </Panel>
+  );
+}
+
+function EndpointShape({ label, fields }: { label: string; fields?: string[] }) {
+  if (!fields?.length) return null;
+  return (
+    <div className="endpoint-shape" aria-label={`${label} fields`}>
+      <b>{label}</b>
+      {fields.slice(0, 16).map((field) => {
+        const split = field.lastIndexOf(":");
+        return <span className="rel-chip" key={field}>{field.slice(0, split)}<i>{field.slice(split + 1)}</i></span>;
+      })}
+      {fields.length > 16 && <small>+{fields.length - 16} more</small>}
+    </div>
+  );
+}
+
+function CodeSection({ doc }: { doc: ReportDocument }) {
+  const code = doc.code_intel;
+  if (!code) {
+    return (
+      <Panel>
+        <SectionHead title="Client code" summary="This section isn't available for this report." />
+        <p className="empty-note">Re-run the analysis to read the product's public JavaScript.</p>
+      </Panel>
+    );
+  }
+  const map = code.source_map;
+  return (
+    <Panel>
+      <SectionHead title="Client code" summary={code.summary} confidence={code.confidence} />
+      <MetricsStrip metrics={code.metrics} />
+      <FindingsList findings={code.findings} />
+      {code.endpoints.length > 0 && (
+        <div className="code-group">
+          <h3 className="content-group-title">Endpoints referenced</h3>
+          <div className="endpoint-list">
+            {code.endpoints.map((ep) => (
+              <div className="endpoint-row" key={`${ep.method}${ep.host ?? ""}${ep.path}`}>
+                <span className={`method ${ep.method.toLowerCase()}`}>{ep.method === "ANY" ? "REF" : ep.method}</span>
+                <code>{ep.host ? `${ep.host}${ep.path}` : ep.path}</code>
+                <small>In shipped JavaScript</small>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      <ChipGroup title="GraphQL operations" items={code.graphql_operations.map((op) => <span className="rel-chip" key={op.name}>{op.name}<i>{op.kind}</i></span>)} />
+      <ChipGroup title="Client routes" note={code.route_source ?? undefined} items={code.routes.map((route) => <span className="rel-chip" key={route}>{route}</span>)} />
+      <ChipGroup title="Feature flags" items={code.flags.map((flag) => <span className="rel-chip" key={flag.key}>{flag.key}<i>{flag.provider}</i></span>)} />
+      <ChipGroup title="Realtime channels" items={code.realtime.map((channel) => <span className="rel-chip" key={channel}>{channel}</span>)} />
+      {map && (
+        <>
+          <ChipGroup
+            title="Original source structure"
+            note={`${map.app_files} files${map.language ? ` · ${map.language}` : ""} · from a public source map`}
+            items={map.areas.map((area) => <span className="rel-chip" key={area.area}>{area.area}<i>{area.files}</i></span>)}
+          />
+          <ChipGroup
+            title="npm dependencies"
+            note={map.dependency_count > map.dependencies.length ? `${map.dependency_count} total` : undefined}
+            items={map.dependencies.map((dep) => <span className="rel-chip" key={dep}>{dep}</span>)}
+          />
+        </>
+      )}
+      <ChipGroup title="Libraries identified" items={code.libraries.map((lib) => <span className="rel-chip" key={lib}>{lib}</span>)} />
+      {code.reasoning && <ReasoningNote text={code.reasoning} />}
+    </Panel>
+  );
+}
+
+function ChipGroup({ title, note, items }: { title: string; note?: string; items: React.ReactNode[] }) {
+  if (items.length === 0) return null;
+  return (
+    <div className="code-group">
+      <h3 className="content-group-title">{title}{note && <small> · {note}</small>}</h3>
+      <div className="code-chips">{items}</div>
+    </div>
   );
 }
 

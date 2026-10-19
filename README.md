@@ -53,6 +53,16 @@ pretending to have access to private source code or infrastructure.
 - **Executable workflow intelligence** — turn a supported journey into a
   behavior trace, operation map, evidence ledger, and automation starter
   without presenting inferred selectors or payloads as observed facts.
+- **Client code** — Orbit reads the public JavaScript bundles every visitor
+  downloads (it never executes them) and reports the API endpoints, GraphQL
+  operations, client routes, feature-flag keys, realtime channels, and
+  libraries they reference. When a source map is publicly reachable, it
+  reports the original file structure and npm dependencies, never the source
+  text. Credential-shaped strings are flagged masked; values are never stored.
+- **Observed data shapes** — HAR imports now carry the field names and types of
+  JSON request and response bodies (`items[].title:string`). The browser
+  computes these before upload and discards every value; the server re-checks
+  them. Entities built from these shapes are marked observed, not conventional.
 
 Orbit distinguishes observed facts from reasoned inferences. When public
 evidence is insufficient, the report says so rather than guessing.
@@ -96,6 +106,23 @@ To run backend tests:
 cd backend
 pytest
 ```
+
+### Use Orbit from an AI agent (MCP)
+
+Orbit ships an MCP server so agents such as Claude Code, Cursor, and Codex can
+analyze products and query reports. It is a thin client of the HTTP API, so
+analyses keep the backend's URL-safety checks, quotas, and tenancy.
+
+```bash
+cd backend
+pip install -e ".[mcp]"
+claude mcp add orbit -e ORBIT_API_URL=http://localhost:8000 -e ORBIT_API_TOKEN=<token> -- orbit-mcp
+```
+
+`ORBIT_API_TOKEN` is an Orbit session token; omit it when the backend runs with
+auth disabled. Tools: `analyze_url`, `get_analysis`, `list_reports`,
+`get_report` (pass `section`, such as `code_intel` or `api`, for full detail),
+`ask_report`, and `compare_reports`.
 
 ## Notes
 

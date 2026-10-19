@@ -7,12 +7,83 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f-]{27,}$/i;
 const OPAQUE = /^[A-Za-z0-9_-]{18,}$/;
 const NUMBER = /^\d{3,}$/;
 
+const MAX_FIELDS = 60;
+const MAX_FIELD_DEPTH = 6;
+const MAX_BODY_CHARS = 2 * 1024 * 1024;
+
 type RawHeader = { name?: unknown; value?: unknown };
 type RawEntry = {
-  request?: { url?: unknown; method?: unknown };
-  response?: { status?: unknown; headers?: unknown; content?: { mimeType?: unknown } };
+  request?: { url?: unknown; method?: unknown; postData?: { mimeType?: unknown; text?: unknown } };
+  response?: { status?: unknown; headers?: unknown; content?: { mimeType?: unknown; text?: unknown; encoding?: unknown } };
   _resourceType?: unknown;
 };
+
+function fieldKey(key: string): string {
+  // Keys that look like ids or emails are data, not schema.
+  if (!/^[A-Za-z_$][A-Za-z0-9_$-]{0,39}$/.test(key) || (/\d/.test(key) && key.length >= 12)) return ":key";
+  return key;
+}
+
+function valueType(value: unknown): string {
+  if (value === null) return "null";
+  if (Array.isArray(value)) return "array";
+  if (typeof value === "object") return "object";
+  if (typeof value === "number" || typeof value === "boolean") return typeof value;
+  return "string";
+}
+
+function collectFields(value: unknown, path: string, depth: number, out: string[]): void {
+  if (out.length >= MAX_FIELDS) return;
+  const kind = valueType(value);
+  if (kind === "array") {
+    const first = (value as unknown[]).find((item) => item !== null && item !== undefined);
+    if (first === undefined || depth >= MAX_FIELD_DEPTH) {
+      if (path) out.push(`${path}:array`);
+      return;
+    }
+    collectFields(first, `${path}[]`, depth + 1, out);
+    return;
+  }
+  if (kind === "object") {
+    const keys = Object.keys(value as Record<string, unknown>);
+    if (keys.length === 0 || depth >= MAX_FIELD_DEPTH) {
+      if (path) out.push(`${path}:object`);
+      return;
+    }
+    for (const key of keys) {
+      collectFields((value as Record<string, unknown>)[key], path ? `${path}.${fieldKey(key)}` : fieldKey(key), depth + 1, out);
+      if (out.length >= MAX_FIELDS) return;
+    }
+    return;
+  }
+  // Only the type is kept. The value itself never leaves this function.
+  out.push(`${path || "[root]"}:${kind}`);
+}
+
+/** Field names and types of a JSON body ("items[].title:string"), with every value discarded. */
+export function jsonShape(text: unknown, mimeType: unknown, encoding?: unknown): string[] {
+  if (typeof text !== "string" || !text || text.length > MAX_BODY_CHARS) return [];
+  if (typeof mimeType === "string" && !/json/i.test(mimeType)) return [];
+  let body = text;
+  if (encoding === "base64") {
+    try {
+      body = new TextDecoder().decode(Uint8Array.from(atob(text), (c) => c.charCodeAt(0)));
+    } catch {
+      return [];
+    }
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    return [];
+  }
+  if (parsed === null || typeof parsed !== "object") return [];
+  const fields: string[] = [];
+  collectFields(parsed, "", 0, fields);
+  // The API rejects paths over 120 characters, so drop them rather than fail the upload.
+  return Array.from(new Set(fields)).filter((field) => !field.startsWith("[root]") && field.length <= 120);
+}
 
 export interface ParsedHar {
   payload: HarImportPayload;
@@ -57,6 +128,8 @@ function sanitizeEntry(raw: RawEntry): SanitizedHarEntry | null {
     typeof raw.response?.content?.mimeType === "string" ? raw.response.content.mimeType.slice(0, 160) : undefined
   );
   const resourceType = typeof raw._resourceType === "string" ? raw._resourceType.toLowerCase().slice(0, 40) : undefined;
+  const requestFields = jsonShape(raw.request?.postData?.text, raw.request?.postData?.mimeType);
+  const responseFields = jsonShape(raw.response?.content?.text, contentType, raw.response?.content?.encoding);
   return {
     url: `${parsed.protocol}//${parsed.host}${routeShape(parsed.pathname)}`,
     method: typeof raw.request?.method === "string" ? raw.request.method.toUpperCase().slice(0, 12) : "GET",
@@ -65,6 +138,8 @@ function sanitizeEntry(raw: RawEntry): SanitizedHarEntry | null {
     ...(contentType ? { content_type: contentType } : {}),
     ...(headers["cache-control"] ? { cache_control: headers["cache-control"] } : {}),
     ...(headers.server ? { server: headers.server } : {}),
+    ...(requestFields.length ? { request_fields: requestFields } : {}),
+    ...(responseFields.length ? { response_fields: responseFields } : {}),
   };
 }
 
